@@ -196,6 +196,13 @@
   .match-item .m-house.lose{ color:var(--lose); }
   .empty-note{ font-size:12.5px; color:var(--text-dim); text-align:center; padding:14px; }
 
+  .pmanage-row{
+    display:flex; justify-content:space-between; align-items:center;
+    border:1px solid var(--line); border-radius:8px; padding:9px 12px;
+    margin-bottom:6px; background:var(--panel-2); font-size:13px;
+  }
+  .pmanage-row .pm-actions{ display:flex; gap:6px; }
+
   .psum-row-wrap{
     border:1px solid var(--line); border-radius:8px;
     margin-bottom:8px; background:var(--panel-2); overflow:hidden;
@@ -397,6 +404,8 @@
       <select id="betParticipantSelect" style="margin-bottom:8px;">
         <option value="">登録済みの参加者から選ぶ…</option>
       </select>
+      <button type="button" class="btn btn-outline btn-small" id="manageParticipantsBtn" style="margin-bottom:10px;">参加者を管理（編集・削除）</button>
+      <div id="participantManageList" style="display:none; margin-bottom:12px;"></div>
       <div class="add-bet-form">
         <input type="text" id="betName" placeholder="または新しい名前を入力" list="participantList" autocomplete="off" class="ab-name">
         <datalist id="participantList"></datalist>
@@ -736,9 +745,9 @@ document.getElementById('createMatchBtn').addEventListener('click', async ()=>{
 async function loadParticipants(){
   const dl = document.getElementById('participantList');
   const sel = document.getElementById('betParticipantSelect');
-  if (!sb) return;
+  if (!sb) return null;
   try {
-    const { data, error } = await sb.from('participants').select('name').order('name', { ascending: true });
+    const { data, error } = await sb.from('participants').select('id, name').order('name', { ascending: true });
     if (error) throw error;
 
     if (dl){
@@ -759,10 +768,91 @@ async function loadParticipants(){
         sel.appendChild(opt);
       });
     }
+    return data || [];
   } catch(err){
     // Non-fatal — the bet name field still works as free text without autocomplete.
     console.error('participant list load failed', err);
+    return [];
   }
+}
+
+/* ---------------- Participant management (rename / delete) ---------------- */
+async function renderParticipantManageList(){
+  const box = document.getElementById('participantManageList');
+  if (!box) return;
+  box.innerHTML = '<div class="empty-note">読み込み中…</div>';
+  try {
+    const { data, error } = await sb.from('participants').select('id, name').order('name', { ascending: true });
+    if (error) throw error;
+    if (!data || data.length === 0){
+      box.innerHTML = '<div class="empty-note">まだ参加者が登録されていません。</div>';
+      return;
+    }
+    box.innerHTML = '';
+    data.forEach(p=>{
+      const row = document.createElement('div');
+      row.className = 'pmanage-row';
+      row.innerHTML = `
+        <span>${p.name}</span>
+        <div class="pm-actions">
+          <button type="button" class="btn btn-outline btn-small pm-rename">名前を変更</button>
+          <button type="button" class="btn btn-outline btn-small pm-delete">削除</button>
+        </div>
+      `;
+      row.querySelector('.pm-rename').addEventListener('click', ()=> renameParticipant(p));
+      row.querySelector('.pm-delete').addEventListener('click', ()=> deleteParticipant(p));
+      box.appendChild(row);
+    });
+  } catch(err){
+    box.innerHTML = `<div class="empty-note">読み込みに失敗しました: ${err.message||err}</div>`;
+  }
+}
+
+async function renameParticipant(p){
+  const newName = prompt('新しい名前を入力してください', p.name);
+  if (newName === null) return; // cancelled
+  const trimmed = newName.trim();
+  if (!trimmed || trimmed === p.name) return;
+
+  try {
+    const { error: upErr } = await sb.from('participants').update({ name: trimmed }).eq('id', p.id);
+    if (upErr) throw upErr;
+    // Keep past bet records' display name in sync with the renamed participant.
+    const { error: betErr } = await sb.from('bets').update({ name: trimmed }).eq('participant_id', p.id);
+    if (betErr) throw betErr;
+
+    await loadParticipants();
+    await renderParticipantManageList();
+    if (currentMatch) await loadBets(currentMatch.id);
+  } catch(err){
+    showError('名前の変更に失敗しました: ' + (err.message||err));
+  }
+}
+
+async function deleteParticipant(p){
+  if (!confirm(`「${p.name}」を参加者リストから削除しますか？\n過去の試合の参加記録は残りますが、この人は登録済み参加者一覧やプルダウンから消えます。`)) return;
+  try {
+    const { error } = await sb.from('participants').delete().eq('id', p.id);
+    if (error) throw error;
+    await loadParticipants();
+    await renderParticipantManageList();
+  } catch(err){
+    showError('削除に失敗しました: ' + (err.message||err));
+  }
+}
+
+const manageParticipantsBtn = document.getElementById('manageParticipantsBtn');
+if (manageParticipantsBtn){
+  manageParticipantsBtn.addEventListener('click', async ()=>{
+    const box = document.getElementById('participantManageList');
+    const showing = box.style.display !== 'none';
+    if (showing){
+      box.style.display = 'none';
+    } else {
+      box.style.display = 'block';
+      await renderParticipantManageList();
+    }
+  });
 }
 
 // Returns the participant id for this name, creating the participant if new.
