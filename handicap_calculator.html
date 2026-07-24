@@ -490,6 +490,21 @@ async function fetchNpbDay(dateStr){
   return data;
 }
 
+// Returns the innings-1-through-9 line score for a specific game, ignoring
+// any extra-inning columns, per our house rule: settle on the 9th-inning
+// (bottom) total even if the game went to extra innings.
+async function fetchNpbLineScore(gameId){
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/npb-day?gameId=${gameId}`, {
+    headers: {
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      apikey: SUPABASE_ANON_KEY,
+    },
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
 function showError(msg){
   const banner = document.getElementById('errBanner');
   if (banner){ banner.style.display = 'block'; banner.textContent = msg; }
@@ -1018,7 +1033,7 @@ async function selectMatch(m){
     scoreEntry.innerHTML = `<div style="font-size:14px; color:var(--text-dim);">確定済みの得点: <b style="color:var(--text); font-size:16px;">${m.score_fav} - ${m.score_dog}</b>（ハンデ側 - 相手側）</div>`;
   } else {
     const npbBtnHtml = m.npb_date
-      ? `<button type="button" class="btn btn-outline" id="npbFetchScoreBtn" style="margin-bottom:12px;">⚾ NPBから最終スコアを取得（${m.npb_team_fav} vs ${m.npb_team_dog}）</button>`
+      ? `<button type="button" class="btn btn-outline" id="npbFetchScoreBtn" style="margin-bottom:12px;">⚾ 9回終了時点のスコアを取得（${m.npb_team_fav} vs ${m.npb_team_dog}）</button>`
       : '';
     scoreEntry.innerHTML = `
       ${npbBtnHtml}
@@ -1273,8 +1288,7 @@ async function removeBet(id){
   }
 }
 
-/* ---------------- Settle match ---------------- */
-/* ---------------- Fetch final score from NPB (Yahoo Sports) ---------------- */
+/* ---------------- Fetch 9th-inning score from NPB (Yahoo Sports) ---------------- */
 async function fetchNpbScoreForCurrentMatch(m){
   const btn = document.getElementById('npbFetchScoreBtn');
   btn.disabled = true; btn.textContent = '取得中…';
@@ -1292,17 +1306,31 @@ async function fetchNpbScoreForCurrentMatch(m){
       alert(`まだ試合が終了していません（現在の状態: ${game.status || '不明'}）。終了後にもう一度お試しください。`);
       return;
     }
-    const favIsHome = game.homeTeam === m.npb_team_fav;
-    const favScore = favIsHome ? game.homeScore : game.awayScore;
-    const dogScore = favIsHome ? game.awayScore : game.homeScore;
-    document.getElementById('matchScoreFav').value = favScore;
-    document.getElementById('matchScoreDog').value = dogScore;
+
+    // Pull the inning-by-inning line score so extra innings (if any) are
+    // excluded — settlement always uses the score through the bottom of the
+    // 9th, per house rule.
+    const gameIdMatch = (game.gameUrl || '').match(/\/game\/(\d+)\//);
+    if (!gameIdMatch){
+      showError('この試合の詳細ページIDを特定できませんでした。');
+      return;
+    }
+    const lineData = await fetchNpbLineScore(gameIdMatch[1]);
+    const favRow = (lineData.rows || []).find(r => r.team === m.npb_team_fav);
+    const dogRow = (lineData.rows || []).find(r => r.team === m.npb_team_dog);
+    if (!favRow || !dogRow){
+      showError('イニングごとの得点表からチーム名を照合できませんでした。');
+      return;
+    }
+
+    document.getElementById('matchScoreFav').value = favRow.throughNineTotal;
+    document.getElementById('matchScoreDog').value = dogRow.throughNineTotal;
     await settleCurrentMatch();
   } catch(err){
     showError('NPBスコアの取得に失敗しました: ' + (err.message || err));
   } finally {
     btn.disabled = false;
-    btn.textContent = `⚾ NPBから最終スコアを取得（${m.npb_team_fav} vs ${m.npb_team_dog}）`;
+    btn.textContent = `⚾ 9回終了時点のスコアを取得（${m.npb_team_fav} vs ${m.npb_team_dog}）`;
   }
 }
 
@@ -1408,10 +1436,10 @@ async function aggregatePeriod(startStr, endStr, label){
       totals[key].profit += profit;
       totals[key].count += 1;
 
-      const dt = new Date(m.settled_at || m.created_at);
+      const dt = matchEffectiveDate(m);
       const dateLabel = `${dt.getMonth()+1}/${dt.getDate()}`;
       totals[key].matches.push({
-        label: m.name || `HC ${hcLabel(m.hc)}`,
+        label: m.name ? m.name : `${dateLabel} HC ${hcLabel(m.hc)}`,
         date: dateLabel,
         amount: b.amount,
         payout: payout,
@@ -1439,7 +1467,7 @@ async function aggregatePeriod(startStr, endStr, label){
         return `
           <div class="psum-detail-row">
             <div>
-              <div class="pd-label">${mm.date} ${mm.label}</div>
+              <div class="pd-label">${mm.label}</div>
               <div class="pd-meta">賭金 ${Number(mm.amount).toLocaleString()}円 ／ 戻し ${Math.round(mm.payout).toLocaleString()}円</div>
             </div>
             <div class="pd-amount ${mCls}">${mSign}${Math.round(mm.profit).toLocaleString()}円</div>
