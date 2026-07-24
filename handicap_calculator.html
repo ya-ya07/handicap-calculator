@@ -34,7 +34,7 @@
     justify-content:center;
     padding:32px 16px 60px;
   }
-  .wrap{ width:100%; max-width:520px; }
+  .wrap{ width:100%; max-width:560px; }
   .eyebrow{
     font-size:11px; letter-spacing:0.25em; color:var(--gold);
     text-transform:uppercase; margin-bottom:6px;
@@ -42,7 +42,7 @@
   h1{
     font-size:22px; margin:0 0 4px; font-weight:700; letter-spacing:0.02em;
   }
-  .sub{ font-size:12.5px; color:var(--text-dim); margin-bottom:28px; line-height:1.6; }
+  .sub{ font-size:12.5px; color:var(--text-dim); margin-bottom:24px; line-height:1.6; }
 
   .card{
     background:var(--panel);
@@ -51,12 +51,16 @@
     padding:20px 20px 22px;
     margin-bottom:16px;
   }
+  .card-title{
+    font-size:13px; font-weight:700; color:var(--gold-bright); margin-bottom:14px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
   .label{
     font-size:12px; color:var(--text-dim); margin-bottom:8px; display:block;
     letter-spacing:0.02em;
   }
 
-  #hcSelect{
+  select, #hcSelect{
     width:100%;
     background:var(--panel-2);
     border:1px solid var(--line);
@@ -66,9 +70,9 @@
     font-size:15px;
     outline:none;
     font-weight:600;
-    margin-bottom:10px;
+    font-family:inherit;
   }
-  #hcSelect:focus{
+  select:focus, #hcSelect:focus{
     border-color:var(--gold-bright);
     box-shadow:0 0 0 2px rgba(217,178,99,0.25);
   }
@@ -95,12 +99,12 @@
     border-color:var(--gold-bright);
     box-shadow:0 0 0 2px rgba(217,178,99,0.25);
   }
-  #hcInput.invalid{ border-color:var(--lose); }
+  #hcInput.invalid, input.invalid{ border-color:var(--lose); }
   .hc-hint{
     font-size:11.5px; color:var(--text-dim); margin-top:8px; line-height:1.6;
   }
 
-  .row{ display:flex; gap:12px; margin-bottom:16px; }
+  .row{ display:flex; gap:12px; }
   .col{ flex:1; }
   input[type=number], input[type=text]{
     width:100%;
@@ -120,306 +124,229 @@
     border-color:var(--gold-bright);
     box-shadow:0 0 0 2px rgba(217,178,99,0.25);
   }
-  input.invalid{ border-color:var(--lose); }
 
-  /* Participants */
-  .participant-row{
-    display:grid;
-    grid-template-columns: 1fr auto auto;
-    gap:8px;
-    align-items:center;
-    margin-bottom:10px;
-    padding:10px;
-    background:var(--panel-2);
-    border:1px solid var(--line);
-    border-radius:8px;
-  }
-  .participant-row .p-name{
-    grid-column: 1 / span 3;
-    margin-bottom:6px;
-  }
-  .p-side-toggle{
-    display:flex;
-    border-radius:6px;
-    overflow:hidden;
-    border:1px solid var(--line);
-  }
-  .p-side-btn{
-    flex:1;
-    background:var(--panel);
-    color:var(--text-dim);
-    border:none;
-    padding:10px 8px;
-    font-size:12.5px;
-    font-weight:600;
-    cursor:pointer;
-    font-family:inherit;
-    -webkit-tap-highlight-color:transparent;
-    touch-action:manipulation;
-    white-space:nowrap;
-  }
-  .p-side-btn.active{
+  .btn{
     background:var(--gold);
     color:#1a1508;
-  }
-  .p-amount{
-    width:110px;
-  }
-  .p-remove{
-    background:transparent;
-    border:1px solid var(--line);
-    color:var(--text-dim);
-    border-radius:6px;
-    padding:10px 12px;
-    cursor:pointer;
+    border:none;
+    border-radius:8px;
+    padding:13px;
     font-size:14px;
-    -webkit-tap-highlight-color:transparent;
-    touch-action:manipulation;
-  }
-  .p-remove:hover{ color:var(--lose); border-color:var(--lose); }
-
-  .add-btn{
-    width:100%;
-    background:transparent;
-    border:1px dashed var(--line);
-    color:var(--gold-bright);
-    border-radius:8px;
-    padding:12px;
-    font-size:13.5px;
-    font-weight:600;
-    cursor:pointer;
-    margin-top:4px;
-    font-family:inherit;
-    -webkit-tap-highlight-color:transparent;
-    touch-action:manipulation;
-  }
-  .add-btn:hover{ border-color:var(--gold-bright); }
-
-  .calc-btn{
-    width:100%;
-    background:var(--gold);
-    color:#1a1508;
-    border:none;
-    border-radius:8px;
-    padding:14px;
-    font-size:15px;
     font-weight:700;
-    letter-spacing:0.03em;
+    letter-spacing:0.02em;
     cursor:pointer;
-    margin-top:4px;
+    font-family:inherit;
     -webkit-appearance:none;
     appearance:none;
     -webkit-tap-highlight-color:transparent;
     touch-action:manipulation;
     min-height:44px;
-    font-family:inherit;
+    width:100%;
   }
-  .calc-btn:active{ transform:translateY(1px); }
-
-  /* Results */
-  .result-list{
-    display:none;
-    flex-direction:column;
-    gap:8px;
-    margin-top:16px;
+  .btn:active{ transform:translateY(1px); }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn-ghost{
+    background:transparent;
+    border:1px dashed var(--line);
+    color:var(--gold-bright);
   }
-  .result-list.show{ display:flex; }
-  .result-row{
-    display:grid;
-    grid-template-columns: 1fr auto auto;
-    gap:10px;
-    align-items:center;
-    border-radius:8px;
-    padding:12px 14px;
+  .btn-small{
+    padding:9px 14px; font-size:12.5px; width:auto; min-height:auto;
+  }
+  .btn-outline{
+    background:transparent;
     border:1px solid var(--line);
+    color:var(--text-dim);
   }
-  .result-row.win{ background:var(--win-bg); border-color:var(--win); }
-  .result-row.lose{ background:var(--lose-bg); border-color:var(--lose); }
-  .result-row.push{ background:var(--push-bg); border-color:var(--push); }
-  .result-row .r-name{ font-weight:700; font-size:14px; }
-  .result-row .r-side{ font-size:11px; color:var(--text-dim); font-weight:400; }
-  .result-row .r-tag{ font-size:12px; text-align:right; white-space:nowrap; }
-  .result-row.win .r-tag{ color:var(--win); }
-  .result-row.lose .r-tag{ color:var(--lose); }
-  .result-row.push .r-tag{ color:var(--push); }
-  .result-row .r-amount{
-    font-weight:800; font-size:16px; text-align:right; white-space:nowrap;
-    font-variant-numeric: tabular-nums;
+
+  .status-badge{
+    display:inline-block; font-size:11px; font-weight:700; padding:3px 9px;
+    border-radius:20px; letter-spacing:0.03em;
   }
-  .result-row.win .r-amount{ color:var(--win); }
-  .result-row.lose .r-amount{ color:var(--lose); }
-  .result-row.push .r-amount{ color:var(--push); }
+  .status-badge.open{ background:rgba(217,178,99,0.18); color:var(--gold-bright); }
+  .status-badge.settled{ background:rgba(127,174,122,0.15); color:var(--push); }
+
+  /* Match list */
+  .match-item{
+    display:flex; justify-content:space-between; align-items:center;
+    border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+    margin-bottom:8px; background:var(--panel-2); cursor:pointer;
+  }
+  .match-item:hover{ border-color:var(--gold-bright); }
+  .match-item.selected{ border-color:var(--gold); background:rgba(184,147,74,0.10); }
+  .match-item .m-hc{ font-weight:700; font-size:14px; }
+  .match-item .m-sub{ font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .match-item .m-right{ text-align:right; }
+  .match-item .m-house{ font-weight:800; font-size:14px; font-variant-numeric:tabular-nums; }
+  .match-item .m-house.win{ color:var(--win); }
+  .match-item .m-house.lose{ color:var(--lose); }
+  .empty-note{ font-size:12.5px; color:var(--text-dim); text-align:center; padding:14px; }
+
+  /* Bets */
+  .bet-row{
+    display:grid; grid-template-columns: 1fr auto auto; gap:8px; align-items:center;
+    margin-bottom:8px; padding:10px; background:var(--panel-2);
+    border:1px solid var(--line); border-radius:8px;
+  }
+  .bet-row .b-name{ font-weight:700; font-size:13.5px; }
+  .bet-row .b-meta{ font-size:11px; color:var(--text-dim); }
+  .bet-row .b-tag{ font-size:11.5px; text-align:right; white-space:nowrap; }
+  .bet-row .b-amount{ font-weight:800; font-size:14.5px; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .bet-row.win .b-tag, .bet-row.win .b-amount{ color:var(--win); }
+  .bet-row.lose .b-tag, .bet-row.lose .b-amount{ color:var(--lose); }
+  .bet-row.push .b-tag, .bet-row.push .b-amount{ color:var(--push); }
+
+  .add-bet-form{
+    display:grid; grid-template-columns: 1fr auto auto auto; gap:8px; margin-top:10px; align-items:center;
+  }
+  .p-side-toggle{ display:flex; border-radius:6px; overflow:hidden; border:1px solid var(--line); }
+  .p-side-btn{
+    background:var(--panel); color:var(--text-dim); border:none; padding:10px 10px;
+    font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation; white-space:nowrap;
+  }
+  .p-side-btn.active{ background:var(--gold); color:#1a1508; }
+  .add-bet-form input[type=text]{ width:100%; }
+  .add-bet-form input[type=number]{ width:100px; }
 
   .summary-box{
-    display:none;
-    margin-top:14px;
-    padding:16px;
-    border-radius:10px;
-    background:var(--panel-2);
-    border:1px solid var(--gold);
+    margin-top:14px; padding:16px; border-radius:10px;
+    background:var(--panel-2); border:1px solid var(--gold);
   }
-  .summary-box.show{ display:block; }
   .summary-line{
     display:flex; justify-content:space-between; align-items:baseline;
     font-size:13px; color:var(--text-dim); padding:4px 0;
   }
-  .summary-line .v{
-    font-weight:800; font-size:17px; color:var(--text);
-    font-variant-numeric: tabular-nums;
-  }
+  .summary-line .v{ font-weight:800; font-size:17px; color:var(--text); font-variant-numeric:tabular-nums; }
   .summary-line .v.win{ color:var(--win); }
   .summary-line .v.lose{ color:var(--lose); }
 
-  .result-detail{
-    font-size:12.5px; color:var(--text-dim); line-height:1.7; margin-top:12px; text-align:center;
-  }
-  .result-detail span{ color:var(--text); font-weight:600; }
-
-  .history-item{
-    border:1px solid var(--line);
-    border-radius:8px;
-    padding:12px 14px;
-    margin-bottom:8px;
-    background:var(--panel-2);
-    cursor:pointer;
-  }
-  .history-item:hover{ border-color:var(--gold-bright); }
-  .history-item .h-top{
-    display:flex; justify-content:space-between; align-items:baseline; gap:8px;
-  }
-  .history-item .h-date{ font-size:11px; color:var(--text-dim); }
-  .history-item .h-hc{ font-weight:700; font-size:14px; }
-  .history-item .h-house{
-    font-weight:800; font-size:15px; font-variant-numeric: tabular-nums;
-  }
-  .history-item .h-house.win{ color:var(--win); }
-  .history-item .h-house.lose{ color:var(--lose); }
-  .history-item .h-memo{ font-size:12px; color:var(--text-dim); margin-top:4px; }
-  .history-item .h-detail{
-    display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);
-    font-size:12.5px; color:var(--text-dim); line-height:1.8;
-  }
-  .history-item.expanded .h-detail{ display:block; }
-  .history-empty{ font-size:12.5px; color:var(--text-dim); text-align:center; padding:12px; }
-
-  footer{
-    text-align:center; font-size:11px; color:#5c5344; margin-top:14px;
-  }
+  footer{ text-align:center; font-size:11px; color:#5c5344; margin-top:14px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="eyebrow">Handicap Settlement</div>
   <h1>ハンデ収支計算機</h1>
-  <div class="sub">ハンデ・得点・参加者ごとの賭け方を入力すると、全員分の収支を一括で計算します。</div>
+  <div class="sub">試合ごとに登録して、参加者はあとから追加。得点が分かったら確定して一括精算します。</div>
 
+  <div id="errBanner" style="display:none; margin-bottom:14px; padding:12px 14px; border-radius:8px; background:rgba(217,117,111,0.15); border:1px solid var(--lose); color:var(--lose); font-size:12.5px; line-height:1.6; word-break:break-all;"></div>
+
+  <!-- 試合一覧 -->
   <div class="card">
-    <span class="label">① ハンデ (HC)</span>
-    <select id="hcSelect">
-      <option value="">プルダウンから選択…（よく使う順）</option>
-      <optgroup label="通常よく使われる出し">
-        <option value="0.2">0.2（2分）</option>
-        <option value="0.3">0.3（3分）</option>
-        <option value="0.4">0.4（4分）</option>
-        <option value="0.5">0.5（5分）</option>
-        <option value="0.7">0.7（7分）</option>
-        <option value="0.9">0.9（9分）</option>
-        <option value="1">1</option>
-        <option value="1.2">1.2（2分）</option>
-        <option value="1.3">1.3（3分）</option>
-        <option value="1.5">1.5（5分）</option>
-        <option value="1.7">1.7（7分）</option>
-        <option value="1.8">1.8（8分）</option>
-        <option value="1半">1半</option>
-        <option value="1半3">1半3（3分）</option>
-        <option value="1半5">1半5（5分）</option>
-        <option value="1半7">1半7（7分）</option>
-        <option value="2">2</option>
-      </optgroup>
-      <optgroup label="ハンデなし">
-        <option value="0">0（互角・ハンデなし）</option>
-      </optgroup>
-      <optgroup label="まれに使われる（2点台）">
-        <option value="2.3">2.3（3分）</option>
-        <option value="2.5">2.5（5分）</option>
-        <option value="2.7">2.7（7分）</option>
-        <option value="2半">2半</option>
-        <option value="2半3">2半3（3分）</option>
-        <option value="2半5">2半5（5分）</option>
-        <option value="2半7">2半7（7分）</option>
-      </optgroup>
-      <optgroup label="ごく稀（3点台以上）">
-        <option value="3">3</option>
-        <option value="3.3">3.3（3分）</option>
-        <option value="3.5">3.5（5分）</option>
-        <option value="3.7">3.7（7分）</option>
-        <option value="3半">3半</option>
-        <option value="3半3">3半3（3分）</option>
-        <option value="3半5">3半5（5分）</option>
-        <option value="3半7">3半7（7分）</option>
-      </optgroup>
-    </select>
-    <div class="or-divider">または手入力（任意の細かさでOK）</div>
-    <input type="text" id="hcInput" list="hcList" placeholder="例: 1.45 / 1半 / 1半45 / 2" autocomplete="off">
-    <datalist id="hcList"></datalist>
-    <div class="hc-hint" id="hcHint">入力例: 0.3 ／ 1.45 ／ 1半 ／ 1半45 ／ 2 ／ 2半67　※桁数は自由（1.4でも1.456でもOK）／「半」の代わりに半角/全角の H も可</div>
+    <div class="card-title">
+      <span>① 試合一覧</span>
+      <button type="button" class="btn btn-outline btn-small" id="refreshMatchesBtn">更新</button>
+    </div>
+    <div id="matchList"><div class="empty-note">読み込み中…</div></div>
+    <button type="button" class="btn btn-ghost" id="newMatchToggleBtn" style="margin-top:10px;">＋ 新しい試合を登録</button>
+
+    <div id="newMatchForm" style="display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--line);">
+      <span class="label">試合名</span>
+      <input type="text" id="newMatchName" placeholder="例: 巨人 vs 阪神" style="margin-bottom:14px;">
+
+      <span class="label">ハンデ (HC)</span>
+      <select id="hcSelect">
+        <option value="">プルダウンから選択…（よく使う順）</option>
+        <optgroup label="通常よく使われる出し">
+          <option value="0.2">0.2（2分）</option>
+          <option value="0.3">0.3（3分）</option>
+          <option value="0.4">0.4（4分）</option>
+          <option value="0.5">0.5（5分）</option>
+          <option value="0.7">0.7（7分）</option>
+          <option value="0.9">0.9（9分）</option>
+          <option value="1">1</option>
+          <option value="1.2">1.2（2分）</option>
+          <option value="1.3">1.3（3分）</option>
+          <option value="1.5">1.5（5分）</option>
+          <option value="1.7">1.7（7分）</option>
+          <option value="1.8">1.8（8分）</option>
+          <option value="1半">1半</option>
+          <option value="1半3">1半3（3分）</option>
+          <option value="1半5">1半5（5分）</option>
+          <option value="1半7">1半7（7分）</option>
+          <option value="2">2</option>
+        </optgroup>
+        <optgroup label="ハンデなし">
+          <option value="0">0（互角・ハンデなし）</option>
+        </optgroup>
+        <optgroup label="まれに使われる（2点台）">
+          <option value="2.3">2.3（3分）</option>
+          <option value="2.5">2.5（5分）</option>
+          <option value="2.7">2.7（7分）</option>
+          <option value="2半">2半</option>
+          <option value="2半3">2半3（3分）</option>
+          <option value="2半5">2半5（5分）</option>
+          <option value="2半7">2半7（7分）</option>
+        </optgroup>
+        <optgroup label="ごく稀（3点台以上）">
+          <option value="3">3</option>
+          <option value="3.3">3.3（3分）</option>
+          <option value="3.5">3.5（5分）</option>
+          <option value="3.7">3.7（7分）</option>
+          <option value="3半">3半</option>
+          <option value="3半3">3半3（3分）</option>
+          <option value="3半5">3半5（5分）</option>
+          <option value="3半7">3半7（7分）</option>
+        </optgroup>
+      </select>
+      <div class="or-divider">または手入力（任意の細かさでOK）</div>
+      <input type="text" id="hcInput" list="hcListDatalist" placeholder="例: 1.45 / 1半 / 1半45 / 2" autocomplete="off" style="margin-bottom:10px;">
+      <datalist id="hcListDatalist"></datalist>
+      <div class="hc-hint" style="margin-bottom:14px;">入力例: 0.3 ／ 1.45 ／ 1半 ／ 1半45 ／ 2 ／ 2半67　※桁数は自由／「半」の代わりに半角/全角の H も可</div>
+
+      <span class="label">メモ（任意）</span>
+      <input type="text" id="newMatchMemo" placeholder="例: 7/24 巨人-阪神" style="margin-bottom:10px;">
+
+      <span class="label">勝ち配当率（％）<span style="color:var(--text-dim); font-weight:400;">— 勝ち時のみ適用、負けは全額</span></span>
+      <input type="number" id="newMatchRate" value="90" min="0" max="100" step="0.1" style="margin-bottom:14px;">
+
+      <button type="button" class="btn" id="createMatchBtn">この内容で試合を登録する</button>
+    </div>
   </div>
 
-  <div class="card">
-    <span class="label">② 得点</span>
-    <div class="row">
-      <div class="col">
-        <span class="label" style="margin-bottom:6px;">ハンデ側の得点</span>
-        <input type="number" id="scoreFav" placeholder="0" inputmode="numeric">
+  <!-- 試合詳細 -->
+  <div class="card" id="matchDetailCard" style="display:none;">
+    <div class="card-title">
+      <span>② 試合の詳細</span>
+      <span class="status-badge" id="matchStatusBadge"></span>
+    </div>
+    <div id="matchInfo" style="margin-bottom:14px; font-size:13px; color:var(--text-dim);"></div>
+
+    <div id="scoreEntry"></div>
+  </div>
+
+  <!-- 参加者(ベット) -->
+  <div class="card" id="betsCard" style="display:none;">
+    <div class="card-title"><span>③ 参加者</span></div>
+    <div id="betsList"><div class="empty-note">まだ参加者がいません。</div></div>
+
+    <div id="addBetForm">
+      <div class="add-bet-form">
+        <input type="text" id="betName" placeholder="名前">
+        <div class="p-side-toggle" id="betSideToggle" data-side="fav">
+          <button type="button" class="p-side-btn active" data-side="fav">ハンデ側</button>
+          <button type="button" class="p-side-btn" data-side="dog">相手側</button>
+        </div>
+        <input type="number" id="betAmount" placeholder="賭け金" inputmode="numeric">
+        <button type="button" class="btn btn-small" id="addBetBtn">追加</button>
       </div>
-      <div class="col">
-        <span class="label" style="margin-bottom:6px;">相手側の得点</span>
-        <input type="number" id="scoreDog" placeholder="0" inputmode="numeric">
+    </div>
+
+    <div class="summary-box" id="summaryBox" style="display:none;">
+      <div class="summary-line">
+        <span>参加者 合計収支</span>
+        <span class="v" id="summaryTotal">±0 円</span>
+      </div>
+      <div class="summary-line">
+        <span>運営（あなた）の収支<span style="opacity:.7;">　※参加者合計の逆</span></span>
+        <span class="v" id="summaryHouse">±0 円</span>
+      </div>
+      <div class="summary-line">
+        <span>内訳</span>
+        <span class="v" id="summaryBreakdown" style="font-size:12px; font-weight:600;">-</span>
       </div>
     </div>
-
-    <span class="label">③ 勝ち配当率（％）<span style="color:var(--text-dim); font-weight:400;">— 勝ち時のみ適用、負けは全額</span></span>
-    <input type="number" id="payoutRate" value="90" min="0" max="100" step="0.1" inputmode="decimal">
-  </div>
-
-  <div class="card">
-    <span class="label">④ 参加者（それぞれの賭け方）</span>
-    <div id="participantRows"></div>
-    <button type="button" class="add-btn" id="addParticipantBtn">＋ 参加者を追加</button>
-  </div>
-
-  <button class="calc-btn" id="calcBtn">全員分の収支を計算する</button>
-  <div id="errBanner" style="display:none; margin-top:12px; padding:12px 14px; border-radius:8px; background:rgba(217,117,111,0.15); border:1px solid var(--lose); color:var(--lose); font-size:12.5px; line-height:1.6; word-break:break-all;"></div>
-
-  <div class="result-list" id="resultList"></div>
-
-  <div class="summary-box" id="summaryBox">
-    <div class="summary-line">
-      <span>参加者 合計収支</span>
-      <span class="v" id="summaryTotal">±0 円</span>
-    </div>
-    <div class="summary-line">
-      <span>運営（あなた）の収支<span style="opacity:.7;">　※参加者合計の逆</span></span>
-      <span class="v" id="summaryHouse">±0 円</span>
-    </div>
-    <div class="summary-line">
-      <span>内訳</span>
-      <span class="v" id="summaryBreakdown" style="font-size:12px; font-weight:600;">-</span>
-    </div>
-  </div>
-
-  <div class="result-detail" id="resultDetail"></div>
-
-  <div id="saveArea" style="display:none; margin-top:14px;">
-    <input type="text" id="memoInput" placeholder="メモ（任意・例: 7/24 巨人-阪神）" style="margin-bottom:8px;">
-    <button type="button" class="add-btn" id="saveBtn">💾 この結果を保存</button>
-    <div id="saveStatus" style="display:none; font-size:12px; margin-top:8px; text-align:center;"></div>
-  </div>
-
-  <div class="card" style="margin-top:20px;">
-    <span class="label">📜 保存履歴</span>
-    <button type="button" class="add-btn" id="loadHistoryBtn">履歴を読み込む</button>
-    <div id="historyList" style="margin-top:10px;"></div>
   </div>
 
   <footer>実際の野球ハンデ表の判定ルール（境界の一列のみ分計算・それ以外は丸勝ち/丸負け）を式として一般化し、任意のハンデを計算します。</footer>
@@ -430,57 +357,25 @@
 const SUPABASE_URL = 'https://oohrsukaxbitphgxossl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vaHJzdWtheGJpdHBoZ3hvc3NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NzYwMzgsImV4cCI6MjEwMDQ1MjAzOH0.d9ubESZqLBqp4WuLSCKyhxw_ErKfWbM_IzIusD8Zi6A';
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-let lastSettlement = null;
 
-window.addEventListener('error', (e)=>{
+function showError(msg){
   const banner = document.getElementById('errBanner');
-  if (banner){
-    banner.style.display = 'block';
-    banner.textContent = 'エラーが発生しました: ' + e.message + ' (line ' + e.lineno + ')';
-  }
-});
+  if (banner){ banner.style.display = 'block'; banner.textContent = msg; }
+}
+window.addEventListener('error', (e)=> showError('エラーが発生しました: ' + e.message + ' (line ' + e.lineno + ')'));
 
 /*
   野球ハンデの一般計算式（任意の小数精度に対応）
   ------------------------------------------------------------
-  実際のプロ野球ハンデ表・複数の解説記事で確認した実務ルールに基づく（単純な
-  「得点差 − ハンデ」の連続計算ではなく、境界となる1列だけが端数(分)処理され、
-  その先はハンデの端数に関わらず「丸勝ち／丸負け」で打ち切られる方式）。
-  端数(r)は 0〜9 の一桁だけでなく、1.45 や 1半333 のような任意の細かさに対応。
+  境界となる1列だけが端数(分)処理され、その先はハンデの端数に関わらず
+  「丸勝ち／丸負け」で打ち切られる実務ルールを一般化したもの。
 
   入力形式:
-    ・"n"        → 整数ハンデ（n.0と同じ）
-    ・"n.f"      → 通常のハンデ。f は何桁でもよい小数（例 1.45 → 45%地点）
-    ・"n半"      → 半ハンデ（n+0.5相当、分けなし。得点差は必ず整数なので
-                   引き分けは発生しない）
-    ・"n半f"     → 半ハンデ+分。f の桁も自由（例 1半45 → 45%、1半3 → 30%）
-                   ※半のあとの数字は「0.」を付けた小数として解釈（3→0.3, 45→0.45）
-
-  境界列 b:
-    ・"n" / "n.f" の場合: b = n
-    ・"n半" / "n半f" の場合: b = n + 1
-
-  判定（M = ハンデ側得点 − 相手側得点、r は 0〜1 の小数=端数の割合）:
-    ・M < b                      → 丸負け(100%)
-    ・M > b                      → 丸勝ち(100%)　※ハンデの端数に関わらず打ち切り
-    ・M === b:
-        - 半なし・r=0            → 引き分け（勝負なし、ステーク全額返還）
-        - 半なし・r>0・n===0     → r*100%負け、かつ b+1列は (1-r)*100%勝ち
-                                    ※n=0のときだけ隣接列にも分計算が及ぶ
-        - 半なし・r>0・n>=1      → r*100%負け（隣接列は上のとおり丸勝ちで打ち切り）
-        - 半あり・r=0            → 丸勝ち（半ハンデは引き分けが起こり得ないため）
-        - 半あり・r>0            → (1-r)*100%勝ち
+    "n"     → 整数ハンデ
+    "n.f"   → 通常のハンデ（f は何桁でもよい小数、例 1.45 → 45%地点）
+    "n半"   → 半ハンデ（分けなし、引き分け発生せず）
+    "n半f"  → 半ハンデ+分（例 1半45 → 45%）
 */
-
-const hcList = document.getElementById('hcList');
-if (hcList){
-  ["0.3","0.5","0.7","1","1.3","1.5","1.7","1半","1半3","1半5","1半7","2","2.3","2.5","2.7","2半","1.45","1半45"].forEach(v=>{
-    const opt = document.createElement('option');
-    opt.value = v;
-    hcList.appendChild(opt);
-  });
-}
-
 function clean(x){ return Math.round(x * 1e6) / 1e6; }
 
 function parseHC(raw){
@@ -489,7 +384,6 @@ function parseHC(raw){
     .replace(/[０-９．]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
     .replace(/[Hh]/g, '半');
   if (s === '') return null;
-
   let m = s.match(/^(\d+)(?:\.0+)?半(\d+)?$/);
   if (m){
     const n = parseInt(m[1], 10);
@@ -497,7 +391,6 @@ function parseHC(raw){
     if (r >= 1) return null;
     return { n, r, isHalf: true };
   }
-
   m = s.match(/^(\d+)(?:\.(\d+))?$/);
   if (m){
     const n = parseInt(m[1], 10);
@@ -507,17 +400,17 @@ function parseHC(raw){
   }
   return null;
 }
-
-function pct(r){
-  const v = clean(r * 100);
-  return Number(v.toFixed(2)).toString();
-}
-
+function pct(r){ const v = clean(r * 100); return Number(v.toFixed(2)).toString(); }
 function formatHC(p){
   if (p.isHalf) return p.r ? `${p.n}半 (+${pct(p.r)}%)` : `${p.n}半`;
   return p.r ? `${p.n} + ${pct(p.r)}%` : `${p.n}`;
 }
-
+// Canonical, always-reparseable string form (used for storage) — e.g. "1半3", "1.45", "2".
+function canonicalHC(p){
+  if (p.r === 0) return p.isHalf ? `${p.n}半` : `${p.n}`;
+  const digits = String(p.r).split('.')[1] || '0';
+  return p.isHalf ? `${p.n}半${digits}` : `${p.n}.${digits}`;
+}
 function evaluate(p, margin){
   const b = p.isHalf ? p.n + 1 : p.n;
   if (margin < b) return { t: 'lose', p: 100 };
@@ -530,23 +423,38 @@ function evaluate(p, margin){
     return { t: 'lose', p: clean(p.r * 100) };
   }
 }
-
 function evaluateWithSpillover(p, margin){
   if (!p.isHalf && p.n === 0 && p.r > 0 && margin === p.n + 1){
     return { t: 'win', p: clean((1 - p.r) * 100) };
   }
   return evaluate(p, margin);
 }
+function profitOf(outcome, amount, rate){
+  if (outcome.t === 'win') return amount * outcome.p / 100 * (rate / 100);
+  if (outcome.t === 'lose') return -amount * outcome.p / 100;
+  return 0;
+}
+function tagText(outcome){
+  const pDisp = outcome.p !== undefined ? Number(outcome.p.toFixed(2)).toString() : '';
+  if (outcome.t === 'push') return '引き分け';
+  if (outcome.t === 'win') return outcome.p === 100 ? '丸勝ち' : `分勝ち(${pDisp}%)`;
+  return outcome.p === 100 ? '丸負け' : `分負け(${pDisp}%)`;
+}
 
+/* ---------------- HC input wiring (new match form) ---------------- */
+const hcListDatalist = document.getElementById('hcListDatalist');
+if (hcListDatalist){
+  ["0.3","0.5","0.7","1","1.3","1.5","1.7","1半","1半3","1半5","1半7","2","2.3","2.5","2.7","2半","1.45","1半45"].forEach(v=>{
+    const opt = document.createElement('option');
+    opt.value = v;
+    hcListDatalist.appendChild(opt);
+  });
+}
 const hcInput = document.getElementById('hcInput');
 const hcSelect = document.getElementById('hcSelect');
-
 if (hcSelect && hcInput){
   hcSelect.addEventListener('change', ()=>{
-    if (hcSelect.value){
-      hcInput.value = hcSelect.value;
-      hcInput.classList.remove('invalid');
-    }
+    if (hcSelect.value){ hcInput.value = hcSelect.value; hcInput.classList.remove('invalid'); }
   });
   hcInput.addEventListener('input', ()=>{
     hcInput.classList.remove('invalid');
@@ -554,287 +462,317 @@ if (hcSelect && hcInput){
   });
 }
 
-/* ---------------- Participants ---------------- */
-let participantSeq = 0;
-const participantRows = document.getElementById('participantRows');
+/* ---------------- State ---------------- */
+let currentMatch = null; // the selected match row from Supabase
+let currentBets = [];    // bets for currentMatch
 
-function addParticipant(name){
-  participantSeq += 1;
-  const id = 'p' + participantSeq;
-  const row = document.createElement('div');
-  row.className = 'participant-row';
-  row.dataset.id = id;
-  row.dataset.side = 'fav';
-  row.innerHTML = `
-    <input type="text" class="p-name" placeholder="名前（任意）" value="${name || ''}">
-    <div class="p-side-toggle">
-      <button type="button" class="p-side-btn active" data-side="fav">ハンデ側</button>
-      <button type="button" class="p-side-btn" data-side="dog">相手側</button>
-    </div>
-    <input type="number" class="p-amount" placeholder="賭け金" inputmode="numeric">
-    <button type="button" class="p-remove" title="削除">✕</button>
-  `;
-  participantRows.appendChild(row);
+/* ---------------- New match form toggle ---------------- */
+const newMatchToggleBtn = document.getElementById('newMatchToggleBtn');
+const newMatchForm = document.getElementById('newMatchForm');
+newMatchToggleBtn.addEventListener('click', ()=>{
+  newMatchForm.style.display = newMatchForm.style.display === 'none' ? 'block' : 'none';
+});
 
-  row.querySelectorAll('.p-side-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      row.dataset.side = btn.dataset.side;
-      row.querySelectorAll('.p-side-btn').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-    });
-  });
-  row.querySelector('.p-remove').addEventListener('click', ()=>{
-    row.remove();
-  });
-}
-
-const addBtn = document.getElementById('addParticipantBtn');
-if (addBtn) addBtn.addEventListener('click', ()=> addParticipant());
-
-// Start with two blank participant rows by default
-addParticipant('参加者1');
-addParticipant('参加者2');
-
-/* ---------------- Calculate ---------------- */
-const calcBtnEl = document.getElementById('calcBtn');
-if (calcBtnEl) calcBtnEl.addEventListener('click', ()=>{
- try {
-  const banner = document.getElementById('errBanner');
-  if (banner) banner.style.display = 'none';
-
-  const sFav = parseFloat(document.getElementById('scoreFav').value);
-  const sDog = parseFloat(document.getElementById('scoreDog').value);
-
+/* ---------------- Create match ---------------- */
+document.getElementById('createMatchBtn').addEventListener('click', async ()=>{
   const parsed = parseHC(hcInput.value);
   if (!parsed){
     hcInput.classList.add('invalid');
-    alert('ハンデの表記が正しくありません。ヒントに表示されている形式(例: 1.4 / 1半 / 1半4 / 2)で入力してください。');
+    alert('ハンデの表記が正しくありません。例: 1.4 / 1半 / 1半4 / 2');
     return;
   }
-  if (isNaN(sFav) || isNaN(sDog)){
-    alert('得点を正しく入力してください。');
-    return;
-  }
+  const rate = parseFloat(document.getElementById('newMatchRate').value);
+  const memo = document.getElementById('newMatchMemo').value.trim() || null;
+  const name = document.getElementById('newMatchName').value.trim() || null;
+  if (!sb){ showError('保存機能を読み込めませんでした。'); return; }
 
-  const payoutRate = parseFloat(document.getElementById('payoutRate').value);
-  const rate = isNaN(payoutRate) ? 90 : payoutRate;
-
-  const margin = sFav - sDog;
-  const favOutcome = evaluateWithSpillover(parsed, margin);
-  const dogOutcome = favOutcome.t === 'push'
-    ? { t: 'push' }
-    : { t: favOutcome.t === 'win' ? 'lose' : 'win', p: favOutcome.p };
-
-  function profitOf(outcome, amount){
-    if (outcome.t === 'win') return amount * outcome.p / 100 * (rate / 100);
-    if (outcome.t === 'lose') return -amount * outcome.p / 100;
-    return 0;
-  }
-  function tagText(outcome){
-    const pDisp = outcome.p !== undefined ? Number(outcome.p.toFixed(2)).toString() : '';
-    if (outcome.t === 'push') return '引き分け';
-    if (outcome.t === 'win') return outcome.p === 100 ? '丸勝ち' : `分勝ち(${pDisp}%)`;
-    return outcome.p === 100 ? '丸負け' : `分負け(${pDisp}%)`;
-  }
-
-  const rows = Array.from(participantRows.querySelectorAll('.participant-row'));
-  if (rows.length === 0){
-    alert('参加者を1人以上追加してください。');
-    return;
-  }
-
-  const results = [];
-  let hasError = false;
-  rows.forEach((row, idx)=>{
-    const nameEl = row.querySelector('.p-name');
-    const amountEl = row.querySelector('.p-amount');
-    const side = row.dataset.side || 'fav';
-    const name = (nameEl.value || '').trim() || `参加者${idx+1}`;
-    const amount = parseFloat(amountEl.value);
-    if (isNaN(amount) || amount <= 0){
-      hasError = true;
-      amountEl.classList.add('invalid');
-      return;
-    }
-    amountEl.classList.remove('invalid');
-    const outcome = side === 'fav' ? favOutcome : dogOutcome;
-    const profit = profitOf(outcome, amount);
-    results.push({ name, side, outcome, amount, profit });
-  });
-
-  if (hasError){
-    alert('賭け金が未入力、または不正な参加者がいます。すべての参加者の賭け金を入力してください。');
-    return;
-  }
-
-  // Render per-participant results
-  const listEl = document.getElementById('resultList');
-  listEl.innerHTML = '';
-  results.forEach(r=>{
-    const div = document.createElement('div');
-    div.className = 'result-row ' + r.outcome.t;
-    const sign = r.profit > 0 ? '+' : (r.profit < 0 ? '' : '±');
-    const sideLabel = r.side === 'fav' ? 'ハンデ側' : '相手側';
-    div.innerHTML = `
-      <div>
-        <div class="r-name">${r.name}</div>
-        <div class="r-side">${sideLabel} ／ 賭け金 ${r.amount.toLocaleString()}円</div>
-      </div>
-      <div class="r-tag">${tagText(r.outcome)}</div>
-      <div class="r-amount">${sign}${Math.round(r.profit).toLocaleString()}円</div>
-    `;
-    listEl.appendChild(div);
-  });
-  listEl.classList.add('show');
-
-  // Summary
-  const total = results.reduce((s,r)=>s+r.profit, 0);
-  const winners = results.filter(r=>r.profit > 0).length;
-  const losers = results.filter(r=>r.profit < 0).length;
-  const pushes = results.filter(r=>r.outcome.t === 'push').length;
-
-  const totalEl = document.getElementById('summaryTotal');
-  const houseEl = document.getElementById('summaryHouse');
-  const breakdownEl = document.getElementById('summaryBreakdown');
-
-  const tSign = total > 0 ? '+' : (total < 0 ? '' : '±');
-  totalEl.textContent = `${tSign}${Math.round(total).toLocaleString()} 円`;
-  totalEl.className = 'v' + (total > 0 ? ' win' : (total < 0 ? ' lose' : ''));
-
-  const house = -total;
-  const hSign = house > 0 ? '+' : (house < 0 ? '' : '±');
-  houseEl.textContent = `${hSign}${Math.round(house).toLocaleString()} 円`;
-  houseEl.className = 'v' + (house > 0 ? ' win' : (house < 0 ? ' lose' : ''));
-
-  breakdownEl.textContent = `勝ち${winners}名 ／ 負け${losers}名 ／ 引き分け${pushes}名`;
-
-  document.getElementById('summaryBox').classList.add('show');
-
-  const marginLabel = margin >= 0 ? `${margin}点差` : `${-margin}点差の負け`;
-  document.getElementById('resultDetail').innerHTML =
-    `HC <span>${formatHC(parsed)}</span> ／ 得点差 <span>${sFav} - ${sDog} = ${margin}</span>（${marginLabel}）／ 勝ち配当率 <span>${rate}%</span>`;
-
-  // Stash the computed settlement so the Save button can persist it as-is.
-  lastSettlement = {
-    hc: formatHC(parsed),
-    score_fav: sFav,
-    score_dog: sDog,
-    payout_rate: rate,
-    participants: results.map(r => ({
-      name: r.name, side: r.side, amount: r.amount,
-      outcome: r.outcome.t, pct: r.outcome.p ?? null, profit: Math.round(r.profit)
-    })),
-    total_profit: Math.round(total),
-    house_profit: Math.round(house)
-  };
-  document.getElementById('saveArea').style.display = 'block';
-  const statusEl = document.getElementById('saveStatus');
-  statusEl.style.display = 'none';
-
- } catch(err){
-   const banner = document.getElementById('errBanner');
-   if (banner){
-     banner.style.display = 'block';
-     banner.textContent = '計算中にエラー: ' + err.message;
-   }
- }
-});
-
-/* ---------------- Save to Supabase ---------------- */
-const saveBtn = document.getElementById('saveBtn');
-if (saveBtn) saveBtn.addEventListener('click', async ()=>{
-  const statusEl = document.getElementById('saveStatus');
-  if (!sb){
-    statusEl.style.display = 'block';
-    statusEl.style.color = 'var(--lose)';
-    statusEl.textContent = '保存機能を読み込めませんでした（通信環境を確認してください）。';
-    return;
-  }
-  if (!lastSettlement){
-    return;
-  }
-  saveBtn.disabled = true;
-  saveBtn.textContent = '保存中…';
+  const btn = document.getElementById('createMatchBtn');
+  btn.disabled = true; btn.textContent = '登録中…';
   try {
-    const memo = document.getElementById('memoInput').value.trim() || null;
-    const { error } = await sb.from('settlements').insert({
-      hc: lastSettlement.hc,
-      score_fav: lastSettlement.score_fav,
-      score_dog: lastSettlement.score_dog,
-      payout_rate: lastSettlement.payout_rate,
-      participants: lastSettlement.participants,
-      total_profit: lastSettlement.total_profit,
-      house_profit: lastSettlement.house_profit,
-      memo
-    });
+    const { data, error } = await sb.from('matches').insert({
+      name,
+      hc: canonicalHC(parsed),
+      memo,
+      payout_rate: isNaN(rate) ? 90 : rate,
+      settled: false
+    }).select().single();
     if (error) throw error;
-    statusEl.style.display = 'block';
-    statusEl.style.color = 'var(--win)';
-    statusEl.textContent = '保存しました。';
-    document.getElementById('memoInput').value = '';
+    newMatchForm.style.display = 'none';
+    document.getElementById('newMatchMemo').value = '';
+    document.getElementById('newMatchName').value = '';
+    hcInput.value = '';
+    await loadMatches();
+    selectMatch(data);
   } catch(err){
-    statusEl.style.display = 'block';
-    statusEl.style.color = 'var(--lose)';
-    statusEl.textContent = '保存に失敗しました: ' + (err.message || err);
+    showError('試合の登録に失敗しました: ' + (err.message || err));
   } finally {
-    saveBtn.disabled = false;
-    saveBtn.textContent = '💾 この結果を保存';
+    btn.disabled = false; btn.textContent = 'この内容で試合を登録する';
   }
 });
 
-/* ---------------- Load history from Supabase ---------------- */
-const loadHistoryBtn = document.getElementById('loadHistoryBtn');
-if (loadHistoryBtn) loadHistoryBtn.addEventListener('click', async ()=>{
-  const listEl = document.getElementById('historyList');
-  listEl.innerHTML = '<div class="history-empty">読み込み中…</div>';
-  if (!sb){
-    listEl.innerHTML = '<div class="history-empty">保存機能を読み込めませんでした。</div>';
-    return;
-  }
+/* ---------------- Load & render match list ---------------- */
+async function loadMatches(){
+  const listEl = document.getElementById('matchList');
+  if (!sb){ listEl.innerHTML = '<div class="empty-note">保存機能を読み込めませんでした。</div>'; return; }
+  listEl.innerHTML = '<div class="empty-note">読み込み中…</div>';
   try {
-    const { data, error } = await sb
-      .from('settlements')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+    const { data, error } = await sb.from('matches').select('*').order('created_at', { ascending: false }).limit(50);
     if (error) throw error;
     if (!data || data.length === 0){
-      listEl.innerHTML = '<div class="history-empty">まだ保存された履歴がありません。</div>';
+      listEl.innerHTML = '<div class="empty-note">まだ試合が登録されていません。</div>';
       return;
     }
     listEl.innerHTML = '';
-    data.forEach(row=>{
+    data.forEach(m=>{
       const div = document.createElement('div');
-      div.className = 'history-item';
-      const dt = new Date(row.created_at);
+      div.className = 'match-item' + (currentMatch && currentMatch.id === m.id ? ' selected' : '');
+      const dt = new Date(m.created_at);
       const dateStr = `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
-      const houseSign = row.house_profit > 0 ? '+' : (row.house_profit < 0 ? '' : '±');
-      const houseCls = row.house_profit > 0 ? 'win' : (row.house_profit < 0 ? 'lose' : '');
-      const participants = Array.isArray(row.participants) ? row.participants : [];
-      const detailRows = participants.map(p=>{
-        const sign = p.profit > 0 ? '+' : (p.profit < 0 ? '' : '±');
-        const sideLabel = p.side === 'fav' ? 'ハンデ側' : '相手側';
-        return `${p.name}（${sideLabel}・${p.amount.toLocaleString()}円）: ${sign}${p.profit.toLocaleString()}円`;
-      }).join('<br>');
-
+      const statusLabel = m.settled ? '確定済み' : '未確定';
+      let rightHtml = `<span class="status-badge ${m.settled ? 'settled':'open'}">${statusLabel}</span>`;
+      if (m.settled && m.house_profit !== null){
+        const sign = m.house_profit > 0 ? '+' : (m.house_profit < 0 ? '' : '±');
+        const cls = m.house_profit > 0 ? 'win' : (m.house_profit < 0 ? 'lose' : '');
+        rightHtml = `<div class="m-house ${cls}">${sign}${Math.round(m.house_profit).toLocaleString()}円</div><div class="m-sub">${statusLabel}</div>`;
+      }
       div.innerHTML = `
-        <div class="h-top">
-          <div>
-            <div class="h-hc">HC ${row.hc}　${row.score_fav} - ${row.score_dog}</div>
-            <div class="h-date">${dateStr}／配当率${row.payout_rate}%／参加者${participants.length}名</div>
-          </div>
-          <div class="h-house ${houseCls}">${houseSign}${row.house_profit.toLocaleString()}円</div>
+        <div>
+          <div class="m-hc">${m.name ? m.name : 'HC ' + m.hc}${m.settled ? `　${m.score_fav} - ${m.score_dog}` : ''}</div>
+          <div class="m-sub">${m.name ? 'HC ' + m.hc + '　／　' : ''}${dateStr}${m.memo ? '／' + m.memo : ''}</div>
         </div>
-        ${row.memo ? `<div class="h-memo">${row.memo}</div>` : ''}
-        <div class="h-detail">${detailRows}</div>
+        <div class="m-right">${rightHtml}</div>
       `;
-      div.addEventListener('click', ()=> div.classList.toggle('expanded'));
+      div.addEventListener('click', ()=> selectMatch(m));
       listEl.appendChild(div);
     });
   } catch(err){
-    listEl.innerHTML = `<div class="history-empty">読み込みに失敗しました: ${err.message || err}</div>`;
+    listEl.innerHTML = `<div class="empty-note">読み込みに失敗しました: ${err.message||err}</div>`;
+  }
+}
+document.getElementById('refreshMatchesBtn').addEventListener('click', ()=>{
+  loadMatches();
+  if (currentMatch) loadBets(currentMatch.id);
+});
+
+/* ---------------- Select a match ---------------- */
+async function selectMatch(m){
+  currentMatch = m;
+  document.querySelectorAll('.match-item').forEach(el=>el.classList.remove('selected'));
+  await loadMatches(); // re-render with selection highlight
+
+  document.getElementById('matchDetailCard').style.display = 'block';
+  document.getElementById('betsCard').style.display = 'block';
+
+  const badge = document.getElementById('matchStatusBadge');
+  badge.textContent = m.settled ? '確定済み' : '未確定';
+  badge.className = 'status-badge ' + (m.settled ? 'settled' : 'open');
+
+  document.getElementById('matchInfo').innerHTML =
+    (m.name ? `<div style="font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px;">${m.name}</div>` : '') +
+    `HC <b style="color:var(--text);">${m.hc}</b> ／ 勝ち配当率 <b style="color:var(--text);">${m.payout_rate}%</b>${m.memo ? '　／　' + m.memo : ''}`;
+
+  const scoreEntry = document.getElementById('scoreEntry');
+  if (m.settled){
+    scoreEntry.innerHTML = `<div style="font-size:14px; color:var(--text-dim);">確定済みの得点: <b style="color:var(--text); font-size:16px;">${m.score_fav} - ${m.score_dog}</b>（ハンデ側 - 相手側）</div>`;
+  } else {
+    scoreEntry.innerHTML = `
+      <div class="row" style="margin-bottom:12px;">
+        <div class="col">
+          <span class="label" style="margin-bottom:6px;">ハンデ側の得点</span>
+          <input type="number" id="matchScoreFav" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="col">
+          <span class="label" style="margin-bottom:6px;">相手側の得点</span>
+          <input type="number" id="matchScoreDog" placeholder="0" inputmode="numeric">
+        </div>
+      </div>
+      <button type="button" class="btn" id="settleMatchBtn">この結果で確定して精算する</button>
+    `;
+    document.getElementById('settleMatchBtn').addEventListener('click', settleCurrentMatch);
+  }
+
+  document.getElementById('addBetForm').style.display = m.settled ? 'none' : 'block';
+
+  await loadBets(m.id);
+}
+
+/* ---------------- Bets: load & render ---------------- */
+async function loadBets(matchId){
+  const listEl = document.getElementById('betsList');
+  listEl.innerHTML = '<div class="empty-note">読み込み中…</div>';
+  try {
+    const { data, error } = await sb.from('bets').select('*').eq('match_id', matchId).order('created_at', { ascending: true });
+    if (error) throw error;
+    currentBets = data || [];
+    renderBets();
+  } catch(err){
+    listEl.innerHTML = `<div class="empty-note">読み込みに失敗しました: ${err.message||err}</div>`;
+  }
+}
+
+function renderBets(){
+  const listEl = document.getElementById('betsList');
+  const m = currentMatch;
+  if (currentBets.length === 0){
+    listEl.innerHTML = '<div class="empty-note">まだ参加者がいません。</div>';
+  } else {
+    listEl.innerHTML = '';
+    let parsed = null, favOutcome = null, dogOutcome = null;
+    if (m.settled){
+      parsed = parseHC(m.hc);
+      const margin = m.score_fav - m.score_dog;
+      favOutcome = evaluateWithSpillover(parsed, margin);
+      dogOutcome = favOutcome.t === 'push' ? {t:'push'} : {t: favOutcome.t==='win'?'lose':'win', p: favOutcome.p};
+    }
+    currentBets.forEach(b=>{
+      const div = document.createElement('div');
+      const sideLabel = b.side === 'fav' ? 'ハンデ側' : '相手側';
+      if (m.settled){
+        const outcome = b.side === 'fav' ? favOutcome : dogOutcome;
+        const profit = profitOf(outcome, b.amount, m.payout_rate);
+        const sign = profit > 0 ? '+' : (profit < 0 ? '' : '±');
+        div.className = 'bet-row ' + outcome.t;
+        div.innerHTML = `
+          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ ${Number(b.amount).toLocaleString()}円</div></div>
+          <div class="b-tag">${tagText(outcome)}</div>
+          <div class="b-amount">${sign}${Math.round(profit).toLocaleString()}円</div>
+        `;
+      } else {
+        div.className = 'bet-row';
+        div.innerHTML = `
+          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ ${Number(b.amount).toLocaleString()}円</div></div>
+          <div class="b-tag"></div>
+          <button type="button" class="btn btn-outline btn-small" data-bet-id="${b.id}">削除</button>
+        `;
+        div.querySelector('button').addEventListener('click', ()=> removeBet(b.id));
+      }
+      listEl.appendChild(div);
+    });
+  }
+
+  if (m.settled){
+    document.getElementById('summaryBox').style.display = 'block';
+  } else {
+    document.getElementById('summaryBox').style.display = 'none';
+  }
+}
+
+// The hc string is stored in canonical, always-reparseable form (see canonicalHC),
+// so we can just use parseHC directly to read it back.
+
+/* ---------------- Add / remove bets ---------------- */
+const betSideToggle = document.getElementById('betSideToggle');
+betSideToggle.querySelectorAll('.p-side-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    betSideToggle.dataset.side = btn.dataset.side;
+    betSideToggle.querySelectorAll('.p-side-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+document.getElementById('addBetBtn').addEventListener('click', async ()=>{
+  if (!currentMatch) return;
+  const nameEl = document.getElementById('betName');
+  const amountEl = document.getElementById('betAmount');
+  const name = nameEl.value.trim();
+  const amount = parseFloat(amountEl.value);
+  const side = betSideToggle.dataset.side || 'fav';
+  if (!name){ nameEl.classList.add('invalid'); alert('名前を入力してください。'); return; }
+  if (isNaN(amount) || amount <= 0){ amountEl.classList.add('invalid'); alert('賭け金を正しく入力してください。'); return; }
+  nameEl.classList.remove('invalid'); amountEl.classList.remove('invalid');
+
+  try {
+    const { error } = await sb.from('bets').insert({ match_id: currentMatch.id, name, side, amount });
+    if (error) throw error;
+    nameEl.value = ''; amountEl.value = '';
+    await loadBets(currentMatch.id);
+  } catch(err){
+    showError('参加者の追加に失敗しました: ' + (err.message||err));
   }
 });
+
+async function removeBet(id){
+  try {
+    const { error } = await sb.from('bets').delete().eq('id', id);
+    if (error) throw error;
+    await loadBets(currentMatch.id);
+  } catch(err){
+    showError('削除に失敗しました: ' + (err.message||err));
+  }
+}
+
+/* ---------------- Settle match ---------------- */
+async function settleCurrentMatch(){
+  const sFav = parseFloat(document.getElementById('matchScoreFav').value);
+  const sDog = parseFloat(document.getElementById('matchScoreDog').value);
+  if (isNaN(sFav) || isNaN(sDog)){ alert('得点を正しく入力してください。'); return; }
+  if (currentBets.length === 0){ alert('参加者を1人以上追加してから確定してください。'); return; }
+
+  const parsed = parseHC(currentMatch.hc);
+  if (!parsed){ showError('この試合のハンデ表記を解釈できませんでした: ' + currentMatch.hc); return; }
+
+  const margin = sFav - sDog;
+  const favOutcome = evaluateWithSpillover(parsed, margin);
+  const dogOutcome = favOutcome.t === 'push' ? {t:'push'} : {t: favOutcome.t==='win'?'lose':'win', p: favOutcome.p};
+
+  let total = 0;
+  currentBets.forEach(b=>{
+    const outcome = b.side === 'fav' ? favOutcome : dogOutcome;
+    total += profitOf(outcome, b.amount, currentMatch.payout_rate);
+  });
+  const house = -total;
+
+  const btn = document.getElementById('settleMatchBtn');
+  btn.disabled = true; btn.textContent = '確定中…';
+  try {
+    const { data, error } = await sb.from('matches').update({
+      score_fav: sFav, score_dog: sDog, settled: true,
+      settled_at: new Date().toISOString(),
+      total_profit: Math.round(total), house_profit: Math.round(house)
+    }).eq('id', currentMatch.id).select().single();
+    if (error) throw error;
+    await loadMatches();
+    selectMatch(data);
+  } catch(err){
+    showError('確定処理に失敗しました: ' + (err.message||err));
+  } finally {
+    btn.disabled = false; btn.textContent = 'この結果で確定して精算する';
+  }
+}
+
+// After settling, render summary numbers (called from renderBets via selectMatch reload)
+const _origRenderBets = renderBets;
+renderBets = function(){
+  _origRenderBets();
+  if (currentMatch && currentMatch.settled){
+    const parsed = parseHC(currentMatch.hc);
+    const margin = currentMatch.score_fav - currentMatch.score_dog;
+    const favOutcome = evaluateWithSpillover(parsed, margin);
+    const dogOutcome = favOutcome.t === 'push' ? {t:'push'} : {t: favOutcome.t==='win'?'lose':'win', p: favOutcome.p};
+    let total = 0, winners = 0, losers = 0, pushes = 0;
+    currentBets.forEach(b=>{
+      const outcome = b.side === 'fav' ? favOutcome : dogOutcome;
+      const profit = profitOf(outcome, b.amount, currentMatch.payout_rate);
+      total += profit;
+      if (outcome.t === 'push') pushes++;
+      else if (profit > 0) winners++;
+      else losers++;
+    });
+    const house = -total;
+    const totalEl = document.getElementById('summaryTotal');
+    const houseEl = document.getElementById('summaryHouse');
+    const tSign = total > 0 ? '+' : (total < 0 ? '' : '±');
+    totalEl.textContent = `${tSign}${Math.round(total).toLocaleString()} 円`;
+    totalEl.className = 'v' + (total > 0 ? ' win' : (total < 0 ? ' lose' : ''));
+    const hSign = house > 0 ? '+' : (house < 0 ? '' : '±');
+    houseEl.textContent = `${hSign}${Math.round(house).toLocaleString()} 円`;
+    houseEl.className = 'v' + (house > 0 ? ' win' : (house < 0 ? ' lose' : ''));
+    document.getElementById('summaryBreakdown').textContent = `勝ち${winners}名 ／ 負け${losers}名 ／ 引き分け${pushes}名`;
+  }
+};
+
+/* ---------------- Init ---------------- */
+loadMatches();
 </script>
 </body>
 </html>
