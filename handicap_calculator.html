@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ハンデ収支計算機</title>
+<style>
+  :root{
+    --bg: #14120f;
+    --panel: #1c1915;
+    --panel-2: #221e18;
+    --line: #3a3226;
+    --gold: #b8934a;
+    --gold-bright: #d9b263;
+    --text: #ece5d8;
+    --text-dim: #a89b85;
+    --win: #8b7fd9;
+    --win-bg: rgba(139,127,217,0.12);
+    --lose: #d9756f;
+    --lose-bg: rgba(217,117,111,0.12);
+    --push: #7fae7a;
+    --push-bg: rgba(127,174,122,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 20% -10%, rgba(184,147,74,0.10), transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+    display:flex;
+    justify-content:center;
+    padding:32px 16px 60px;
+  }
+  .wrap{ width:100%; max-width:520px; }
+  .eyebrow{
+    font-size:11px; letter-spacing:0.25em; color:var(--gold);
+    text-transform:uppercase; margin-bottom:6px;
+  }
+  h1{
+    font-size:22px; margin:0 0 4px; font-weight:700; letter-spacing:0.02em;
+  }
+  .sub{ font-size:12.5px; color:var(--text-dim); margin-bottom:28px; line-height:1.6; }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px 20px 22px;
+    margin-bottom:16px;
+  }
+  .label{
+    font-size:12px; color:var(--text-dim); margin-bottom:8px; display:block;
+    letter-spacing:0.02em;
+  }
+
+  #hcSelect{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:6px;
+    padding:11px 12px;
+    font-size:15px;
+    outline:none;
+    font-weight:600;
+    margin-bottom:10px;
+  }
+  #hcSelect:focus{
+    border-color:var(--gold-bright);
+    box-shadow:0 0 0 2px rgba(217,178,99,0.25);
+  }
+  .or-divider{
+    font-size:11px;
+    color:var(--text-dim);
+    text-align:center;
+    margin:10px 0 8px;
+  }
+
+  #hcInput{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:6px;
+    padding:11px 12px;
+    font-size:16px;
+    outline:none;
+    font-weight:700;
+    letter-spacing:0.02em;
+  }
+  #hcInput:focus{
+    border-color:var(--gold-bright);
+    box-shadow:0 0 0 2px rgba(217,178,99,0.25);
+  }
+  #hcInput.invalid{ border-color:var(--lose); }
+  .hc-hint{
+    font-size:11.5px; color:var(--text-dim); margin-top:8px; line-height:1.6;
+  }
+
+  .row{ display:flex; gap:12px; margin-bottom:16px; }
+  .col{ flex:1; }
+  input[type=number], input[type=text]{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:6px;
+    padding:11px 12px;
+    font-size:16px;
+    outline:none;
+    -moz-appearance: textfield;
+    font-family:inherit;
+  }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{ opacity:0.5; }
+  input:focus{
+    border-color:var(--gold-bright);
+    box-shadow:0 0 0 2px rgba(217,178,99,0.25);
+  }
+  input.invalid{ border-color:var(--lose); }
+
+  /* Participants */
+  .participant-row{
+    display:grid;
+    grid-template-columns: 1fr auto auto;
+    gap:8px;
+    align-items:center;
+    margin-bottom:10px;
+    padding:10px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+  }
+  .participant-row .p-name{
+    grid-column: 1 / span 3;
+    margin-bottom:6px;
+  }
+  .p-side-toggle{
+    display:flex;
+    border-radius:6px;
+    overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .p-side-btn{
+    flex:1;
+    background:var(--panel);
+    color:var(--text-dim);
+    border:none;
+    padding:10px 8px;
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:inherit;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+    white-space:nowrap;
+  }
+  .p-side-btn.active{
+    background:var(--gold);
+    color:#1a1508;
+  }
+  .p-amount{
+    width:110px;
+  }
+  .p-remove{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--text-dim);
+    border-radius:6px;
+    padding:10px 12px;
+    cursor:pointer;
+    font-size:14px;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+  .p-remove:hover{ color:var(--lose); border-color:var(--lose); }
+
+  .add-btn{
+    width:100%;
+    background:transparent;
+    border:1px dashed var(--line);
+    color:var(--gold-bright);
+    border-radius:8px;
+    padding:12px;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:4px;
+    font-family:inherit;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+  .add-btn:hover{ border-color:var(--gold-bright); }
+
+  .calc-btn{
+    width:100%;
+    background:var(--gold);
+    color:#1a1508;
+    border:none;
+    border-radius:8px;
+    padding:14px;
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:0.03em;
+    cursor:pointer;
+    margin-top:4px;
+    -webkit-appearance:none;
+    appearance:none;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+    min-height:44px;
+    font-family:inherit;
+  }
+  .calc-btn:active{ transform:translateY(1px); }
+
+  /* Results */
+  .result-list{
+    display:none;
+    flex-direction:column;
+    gap:8px;
+    margin-top:16px;
+  }
+  .result-list.show{ display:flex; }
+  .result-row{
+    display:grid;
+    grid-template-columns: 1fr auto auto;
+    gap:10px;
+    align-items:center;
+    border-radius:8px;
+    padding:12px 14px;
+    border:1px solid var(--line);
+  }
+  .result-row.win{ background:var(--win-bg); border-color:var(--win); }
+  .result-row.lose{ background:var(--lose-bg); border-color:var(--lose); }
+  .result-row.push{ background:var(--push-bg); border-color:var(--push); }
+  .result-row .r-name{ font-weight:700; font-size:14px; }
+  .result-row .r-side{ font-size:11px; color:var(--text-dim); font-weight:400; }
+  .result-row .r-tag{ font-size:12px; text-align:right; white-space:nowrap; }
+  .result-row.win .r-tag{ color:var(--win); }
+  .result-row.lose .r-tag{ color:var(--lose); }
+  .result-row.push .r-tag{ color:var(--push); }
+  .result-row .r-amount{
+    font-weight:800; font-size:16px; text-align:right; white-space:nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-row.win .r-amount{ color:var(--win); }
+  .result-row.lose .r-amount{ color:var(--lose); }
+  .result-row.push .r-amount{ color:var(--push); }
+
+  .summary-box{
+    display:none;
+    margin-top:14px;
+    padding:16px;
+    border-radius:10px;
+    background:var(--panel-2);
+    border:1px solid var(--gold);
+  }
+  .summary-box.show{ display:block; }
+  .summary-line{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:13px; color:var(--text-dim); padding:4px 0;
+  }
+  .summary-line .v{
+    font-weight:800; font-size:17px; color:var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .summary-line .v.win{ color:var(--win); }
+  .summary-line .v.lose{ color:var(--lose); }
+
+  .result-detail{
+    font-size:12.5px; color:var(--text-dim); line-height:1.7; margin-top:12px; text-align:center;
+  }
+  .result-detail span{ color:var(--text); font-weight:600; }
+
+  .history-item{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    margin-bottom:8px;
+    background:var(--panel-2);
+    cursor:pointer;
+  }
+  .history-item:hover{ border-color:var(--gold-bright); }
+  .history-item .h-top{
+    display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+  }
+  .history-item .h-date{ font-size:11px; color:var(--text-dim); }
+  .history-item .h-hc{ font-weight:700; font-size:14px; }
+  .history-item .h-house{
+    font-weight:800; font-size:15px; font-variant-numeric: tabular-nums;
+  }
+  .history-item .h-house.win{ color:var(--win); }
+  .history-item .h-house.lose{ color:var(--lose); }
+  .history-item .h-memo{ font-size:12px; color:var(--text-dim); margin-top:4px; }
+  .history-item .h-detail{
+    display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);
+    font-size:12.5px; color:var(--text-dim); line-height:1.8;
+  }
+  .history-item.expanded .h-detail{ display:block; }
+  .history-empty{ font-size:12.5px; color:var(--text-dim); text-align:center; padding:12px; }
+
+  footer{
+    text-align:center; font-size:11px; color:#5c5344; margin-top:14px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Handicap Settlement</div>
+  <h1>ハンデ収支計算機</h1>
+  <div class="sub">ハンデ・得点・参加者ごとの賭け方を入力すると、全員分の収支を一括で計算します。</div>
+
+  <div class="card">
+    <span class="label">① ハンデ (HC)</span>
+    <select id="hcSelect">
+      <option value="">プルダウンから選択…（よく使う順）</option>
+      <optgroup label="通常よく使われる出し">
+        <option value="0.2">0.2（2分）</option>
+        <option value="0.3">0.3（3分）</option>
+        <option value="0.4">0.4（4分）</option>
+        <option value="0.5">0.5（5分）</option>
+        <option value="0.7">0.7（7分）</option>
+        <option value="0.9">0.9（9分）</option>
+        <option value="1">1</option>
+        <option value="1.2">1.2（2分）</option>
+        <option value="1.3">1.3（3分）</option>
+        <option value="1.5">1.5（5分）</option>
+        <option value="1.7">1.7（7分）</option>
+        <option value="1.8">1.8（8分）</option>
+        <option value="1半">1半</option>
+        <option value="1半3">1半3（3分）</option>
+        <option value="1半5">1半5（5分）</option>
+        <option value="1半7">1半7（7分）</option>
+        <option value="2">2</option>
+      </optgroup>
+      <optgroup label="ハンデなし">
+        <option value="0">0（互角・ハンデなし）</option>
+      </optgroup>
+      <optgroup label="まれに使われる（2点台）">
+        <option value="2.3">2.3（3分）</option>
+        <option value="2.5">2.5（5分）</option>
+        <option value="2.7">2.7（7分）</option>
+        <option value="2半">2半</option>
+        <option value="2半3">2半3（3分）</option>
+        <option value="2半5">2半5（5分）</option>
+        <option value="2半7">2半7（7分）</option>
+      </optgroup>
+      <optgroup label="ごく稀（3点台以上）">
+        <option value="3">3</option>
+        <option value="3.3">3.3（3分）</option>
+        <option value="3.5">3.5（5分）</option>
+        <option value="3.7">3.7（7分）</option>
+        <option value="3半">3半</option>
+        <option value="3半3">3半3（3分）</option>
+        <option value="3半5">3半5（5分）</option>
+        <option value="3半7">3半7（7分）</option>
+      </optgroup>
+    </select>
+    <div class="or-divider">または手入力（任意の細かさでOK）</div>
+    <input type="text" id="hcInput" list="hcList" placeholder="例: 1.45 / 1半 / 1半45 / 2" autocomplete="off">
+    <datalist id="hcList"></datalist>
+    <div class="hc-hint" id="hcHint">入力例: 0.3 ／ 1.45 ／ 1半 ／ 1半45 ／ 2 ／ 2半67　※桁数は自由（1.4でも1.456でもOK）／「半」の代わりに半角/全角の H も可</div>
+  </div>
+
+  <div class="card">
+    <span class="label">② 得点</span>
+    <div class="row">
+      <div class="col">
+        <span class="label" style="margin-bottom:6px;">ハンデ側の得点</span>
+        <input type="number" id="scoreFav" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="col">
+        <span class="label" style="margin-bottom:6px;">相手側の得点</span>
+        <input type="number" id="scoreDog" placeholder="0" inputmode="numeric">
+      </div>
+    </div>
+
+    <span class="label">③ 勝ち配当率（％）<span style="color:var(--text-dim); font-weight:400;">— 勝ち時のみ適用、負けは全額</span></span>
+    <input type="number" id="payoutRate" value="90" min="0" max="100" step="0.1" inputmode="decimal">
+  </div>
+
+  <div class="card">
+    <span class="label">④ 参加者（それぞれの賭け方）</span>
+    <div id="participantRows"></div>
+    <button type="button" class="add-btn" id="addParticipantBtn">＋ 参加者を追加</button>
+  </div>
+
+  <button class="calc-btn" id="calcBtn">全員分の収支を計算する</button>
+  <div id="errBanner" style="display:none; margin-top:12px; padding:12px 14px; border-radius:8px; background:rgba(217,117,111,0.15); border:1px solid var(--lose); color:var(--lose); font-size:12.5px; line-height:1.6; word-break:break-all;"></div>
+
+  <div class="result-list" id="resultList"></div>
+
+  <div class="summary-box" id="summaryBox">
+    <div class="summary-line">
+      <span>参加者 合計収支</span>
+      <span class="v" id="summaryTotal">±0 円</span>
+    </div>
+    <div class="summary-line">
+      <span>運営（あなた）の収支<span style="opacity:.7;">　※参加者合計の逆</span></span>
+      <span class="v" id="summaryHouse">±0 円</span>
+    </div>
+    <div class="summary-line">
+      <span>内訳</span>
+      <span class="v" id="summaryBreakdown" style="font-size:12px; font-weight:600;">-</span>
+    </div>
+  </div>
+
+  <div class="result-detail" id="resultDetail"></div>
+
+  <div id="saveArea" style="display:none; margin-top:14px;">
+    <input type="text" id="memoInput" placeholder="メモ（任意・例: 7/24 巨人-阪神）" style="margin-bottom:8px;">
+    <button type="button" class="add-btn" id="saveBtn">💾 この結果を保存</button>
+    <div id="saveStatus" style="display:none; font-size:12px; margin-top:8px; text-align:center;"></div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <span class="label">📜 保存履歴</span>
+    <button type="button" class="add-btn" id="loadHistoryBtn">履歴を読み込む</button>
+    <div id="historyList" style="margin-top:10px;"></div>
+  </div>
+
+  <footer>実際の野球ハンデ表の判定ルール（境界の一列のみ分計算・それ以外は丸勝ち/丸負け）を式として一般化し、任意のハンデを計算します。</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://oohrsukaxbitphgxossl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vaHJzdWtheGJpdHBoZ3hvc3NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NzYwMzgsImV4cCI6MjEwMDQ1MjAzOH0.d9ubESZqLBqp4WuLSCKyhxw_ErKfWbM_IzIusD8Zi6A';
+const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let lastSettlement = null;
+
+window.addEventListener('error', (e)=>{
+  const banner = document.getElementById('errBanner');
+  if (banner){
+    banner.style.display = 'block';
+    banner.textContent = 'エラーが発生しました: ' + e.message + ' (line ' + e.lineno + ')';
+  }
+});
+
+/*
+  野球ハンデの一般計算式（任意の小数精度に対応）
+  ------------------------------------------------------------
+  実際のプロ野球ハンデ表・複数の解説記事で確認した実務ルールに基づく（単純な
+  「得点差 − ハンデ」の連続計算ではなく、境界となる1列だけが端数(分)処理され、
+  その先はハンデの端数に関わらず「丸勝ち／丸負け」で打ち切られる方式）。
+  端数(r)は 0〜9 の一桁だけでなく、1.45 や 1半333 のような任意の細かさに対応。
+
+  入力形式:
+    ・"n"        → 整数ハンデ（n.0と同じ）
+    ・"n.f"      → 通常のハンデ。f は何桁でもよい小数（例 1.45 → 45%地点）
+    ・"n半"      → 半ハンデ（n+0.5相当、分けなし。得点差は必ず整数なので
+                   引き分けは発生しない）
+    ・"n半f"     → 半ハンデ+分。f の桁も自由（例 1半45 → 45%、1半3 → 30%）
+                   ※半のあとの数字は「0.」を付けた小数として解釈（3→0.3, 45→0.45）
+
+  境界列 b:
+    ・"n" / "n.f" の場合: b = n
+    ・"n半" / "n半f" の場合: b = n + 1
+
+  判定（M = ハンデ側得点 − 相手側得点、r は 0〜1 の小数=端数の割合）:
+    ・M < b                      → 丸負け(100%)
+    ・M > b                      → 丸勝ち(100%)　※ハンデの端数に関わらず打ち切り
+    ・M === b:
+        - 半なし・r=0            → 引き分け（勝負なし、ステーク全額返還）
+        - 半なし・r>0・n===0     → r*100%負け、かつ b+1列は (1-r)*100%勝ち
+                                    ※n=0のときだけ隣接列にも分計算が及ぶ
+        - 半なし・r>0・n>=1      → r*100%負け（隣接列は上のとおり丸勝ちで打ち切り）
+        - 半あり・r=0            → 丸勝ち（半ハンデは引き分けが起こり得ないため）
+        - 半あり・r>0            → (1-r)*100%勝ち
+*/
+
+const hcList = document.getElementById('hcList');
+if (hcList){
+  ["0.3","0.5","0.7","1","1.3","1.5","1.7","1半","1半3","1半5","1半7","2","2.3","2.5","2.7","2半","1.45","1半45"].forEach(v=>{
+    const opt = document.createElement('option');
+    opt.value = v;
+    hcList.appendChild(opt);
+  });
+}
+
+function clean(x){ return Math.round(x * 1e6) / 1e6; }
+
+function parseHC(raw){
+  if (!raw) return null;
+  let s = raw.trim()
+    .replace(/[０-９．]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/[Hh]/g, '半');
+  if (s === '') return null;
+
+  let m = s.match(/^(\d+)(?:\.0+)?半(\d+)?$/);
+  if (m){
+    const n = parseInt(m[1], 10);
+    const r = m[2] ? clean(parseFloat('0.' + m[2])) : 0;
+    if (r >= 1) return null;
+    return { n, r, isHalf: true };
+  }
+
+  m = s.match(/^(\d+)(?:\.(\d+))?$/);
+  if (m){
+    const n = parseInt(m[1], 10);
+    const r = m[2] ? clean(parseFloat('0.' + m[2])) : 0;
+    if (r >= 1) return null;
+    return { n, r, isHalf: false };
+  }
+  return null;
+}
+
+function pct(r){
+  const v = clean(r * 100);
+  return Number(v.toFixed(2)).toString();
+}
+
+function formatHC(p){
+  if (p.isHalf) return p.r ? `${p.n}半 (+${pct(p.r)}%)` : `${p.n}半`;
+  return p.r ? `${p.n} + ${pct(p.r)}%` : `${p.n}`;
+}
+
+function evaluate(p, margin){
+  const b = p.isHalf ? p.n + 1 : p.n;
+  if (margin < b) return { t: 'lose', p: 100 };
+  if (margin > b) return { t: 'win', p: 100 };
+  if (p.isHalf){
+    if (p.r === 0) return { t: 'win', p: 100 };
+    return { t: 'win', p: clean((1 - p.r) * 100) };
+  } else {
+    if (p.r === 0) return { t: 'push' };
+    return { t: 'lose', p: clean(p.r * 100) };
+  }
+}
+
+function evaluateWithSpillover(p, margin){
+  if (!p.isHalf && p.n === 0 && p.r > 0 && margin === p.n + 1){
+    return { t: 'win', p: clean((1 - p.r) * 100) };
+  }
+  return evaluate(p, margin);
+}
+
+const hcInput = document.getElementById('hcInput');
+const hcSelect = document.getElementById('hcSelect');
+
+if (hcSelect && hcInput){
+  hcSelect.addEventListener('change', ()=>{
+    if (hcSelect.value){
+      hcInput.value = hcSelect.value;
+      hcInput.classList.remove('invalid');
+    }
+  });
+  hcInput.addEventListener('input', ()=>{
+    hcInput.classList.remove('invalid');
+    hcSelect.value = '';
+  });
+}
+
+/* ---------------- Participants ---------------- */
+let participantSeq = 0;
+const participantRows = document.getElementById('participantRows');
+
+function addParticipant(name){
+  participantSeq += 1;
+  const id = 'p' + participantSeq;
+  const row = document.createElement('div');
+  row.className = 'participant-row';
+  row.dataset.id = id;
+  row.dataset.side = 'fav';
+  row.innerHTML = `
+    <input type="text" class="p-name" placeholder="名前（任意）" value="${name || ''}">
+    <div class="p-side-toggle">
+      <button type="button" class="p-side-btn active" data-side="fav">ハンデ側</button>
+      <button type="button" class="p-side-btn" data-side="dog">相手側</button>
+    </div>
+    <input type="number" class="p-amount" placeholder="賭け金" inputmode="numeric">
+    <button type="button" class="p-remove" title="削除">✕</button>
+  `;
+  participantRows.appendChild(row);
+
+  row.querySelectorAll('.p-side-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      row.dataset.side = btn.dataset.side;
+      row.querySelectorAll('.p-side-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  row.querySelector('.p-remove').addEventListener('click', ()=>{
+    row.remove();
+  });
+}
+
+const addBtn = document.getElementById('addParticipantBtn');
+if (addBtn) addBtn.addEventListener('click', ()=> addParticipant());
+
+// Start with two blank participant rows by default
+addParticipant('参加者1');
+addParticipant('参加者2');
+
+/* ---------------- Calculate ---------------- */
+const calcBtnEl = document.getElementById('calcBtn');
+if (calcBtnEl) calcBtnEl.addEventListener('click', ()=>{
+ try {
+  const banner = document.getElementById('errBanner');
+  if (banner) banner.style.display = 'none';
+
+  const sFav = parseFloat(document.getElementById('scoreFav').value);
+  const sDog = parseFloat(document.getElementById('scoreDog').value);
+
+  const parsed = parseHC(hcInput.value);
+  if (!parsed){
+    hcInput.classList.add('invalid');
+    alert('ハンデの表記が正しくありません。ヒントに表示されている形式(例: 1.4 / 1半 / 1半4 / 2)で入力してください。');
+    return;
+  }
+  if (isNaN(sFav) || isNaN(sDog)){
+    alert('得点を正しく入力してください。');
+    return;
+  }
+
+  const payoutRate = parseFloat(document.getElementById('payoutRate').value);
+  const rate = isNaN(payoutRate) ? 90 : payoutRate;
+
+  const margin = sFav - sDog;
+  const favOutcome = evaluateWithSpillover(parsed, margin);
+  const dogOutcome = favOutcome.t === 'push'
+    ? { t: 'push' }
+    : { t: favOutcome.t === 'win' ? 'lose' : 'win', p: favOutcome.p };
+
+  function profitOf(outcome, amount){
+    if (outcome.t === 'win') return amount * outcome.p / 100 * (rate / 100);
+    if (outcome.t === 'lose') return -amount * outcome.p / 100;
+    return 0;
+  }
+  function tagText(outcome){
+    const pDisp = outcome.p !== undefined ? Number(outcome.p.toFixed(2)).toString() : '';
+    if (outcome.t === 'push') return '引き分け';
+    if (outcome.t === 'win') return outcome.p === 100 ? '丸勝ち' : `分勝ち(${pDisp}%)`;
+    return outcome.p === 100 ? '丸負け' : `分負け(${pDisp}%)`;
+  }
+
+  const rows = Array.from(participantRows.querySelectorAll('.participant-row'));
+  if (rows.length === 0){
+    alert('参加者を1人以上追加してください。');
+    return;
+  }
+
+  const results = [];
+  let hasError = false;
+  rows.forEach((row, idx)=>{
+    const nameEl = row.querySelector('.p-name');
+    const amountEl = row.querySelector('.p-amount');
+    const side = row.dataset.side || 'fav';
+    const name = (nameEl.value || '').trim() || `参加者${idx+1}`;
+    const amount = parseFloat(amountEl.value);
+    if (isNaN(amount) || amount <= 0){
+      hasError = true;
+      amountEl.classList.add('invalid');
+      return;
+    }
+    amountEl.classList.remove('invalid');
+    const outcome = side === 'fav' ? favOutcome : dogOutcome;
+    const profit = profitOf(outcome, amount);
+    results.push({ name, side, outcome, amount, profit });
+  });
+
+  if (hasError){
+    alert('賭け金が未入力、または不正な参加者がいます。すべての参加者の賭け金を入力してください。');
+    return;
+  }
+
+  // Render per-participant results
+  const listEl = document.getElementById('resultList');
+  listEl.innerHTML = '';
+  results.forEach(r=>{
+    const div = document.createElement('div');
+    div.className = 'result-row ' + r.outcome.t;
+    const sign = r.profit > 0 ? '+' : (r.profit < 0 ? '' : '±');
+    const sideLabel = r.side === 'fav' ? 'ハンデ側' : '相手側';
+    div.innerHTML = `
+      <div>
+        <div class="r-name">${r.name}</div>
+        <div class="r-side">${sideLabel} ／ 賭け金 ${r.amount.toLocaleString()}円</div>
+      </div>
+      <div class="r-tag">${tagText(r.outcome)}</div>
+      <div class="r-amount">${sign}${Math.round(r.profit).toLocaleString()}円</div>
+    `;
+    listEl.appendChild(div);
+  });
+  listEl.classList.add('show');
+
+  // Summary
+  const total = results.reduce((s,r)=>s+r.profit, 0);
+  const winners = results.filter(r=>r.profit > 0).length;
+  const losers = results.filter(r=>r.profit < 0).length;
+  const pushes = results.filter(r=>r.outcome.t === 'push').length;
+
+  const totalEl = document.getElementById('summaryTotal');
+  const houseEl = document.getElementById('summaryHouse');
+  const breakdownEl = document.getElementById('summaryBreakdown');
+
+  const tSign = total > 0 ? '+' : (total < 0 ? '' : '±');
+  totalEl.textContent = `${tSign}${Math.round(total).toLocaleString()} 円`;
+  totalEl.className = 'v' + (total > 0 ? ' win' : (total < 0 ? ' lose' : ''));
+
+  const house = -total;
+  const hSign = house > 0 ? '+' : (house < 0 ? '' : '±');
+  houseEl.textContent = `${hSign}${Math.round(house).toLocaleString()} 円`;
+  houseEl.className = 'v' + (house > 0 ? ' win' : (house < 0 ? ' lose' : ''));
+
+  breakdownEl.textContent = `勝ち${winners}名 ／ 負け${losers}名 ／ 引き分け${pushes}名`;
+
+  document.getElementById('summaryBox').classList.add('show');
+
+  const marginLabel = margin >= 0 ? `${margin}点差` : `${-margin}点差の負け`;
+  document.getElementById('resultDetail').innerHTML =
+    `HC <span>${formatHC(parsed)}</span> ／ 得点差 <span>${sFav} - ${sDog} = ${margin}</span>（${marginLabel}）／ 勝ち配当率 <span>${rate}%</span>`;
+
+  // Stash the computed settlement so the Save button can persist it as-is.
+  lastSettlement = {
+    hc: formatHC(parsed),
+    score_fav: sFav,
+    score_dog: sDog,
+    payout_rate: rate,
+    participants: results.map(r => ({
+      name: r.name, side: r.side, amount: r.amount,
+      outcome: r.outcome.t, pct: r.outcome.p ?? null, profit: Math.round(r.profit)
+    })),
+    total_profit: Math.round(total),
+    house_profit: Math.round(house)
+  };
+  document.getElementById('saveArea').style.display = 'block';
+  const statusEl = document.getElementById('saveStatus');
+  statusEl.style.display = 'none';
+
+ } catch(err){
+   const banner = document.getElementById('errBanner');
+   if (banner){
+     banner.style.display = 'block';
+     banner.textContent = '計算中にエラー: ' + err.message;
+   }
+ }
+});
+
+/* ---------------- Save to Supabase ---------------- */
+const saveBtn = document.getElementById('saveBtn');
+if (saveBtn) saveBtn.addEventListener('click', async ()=>{
+  const statusEl = document.getElementById('saveStatus');
+  if (!sb){
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--lose)';
+    statusEl.textContent = '保存機能を読み込めませんでした（通信環境を確認してください）。';
+    return;
+  }
+  if (!lastSettlement){
+    return;
+  }
+  saveBtn.disabled = true;
+  saveBtn.textContent = '保存中…';
+  try {
+    const memo = document.getElementById('memoInput').value.trim() || null;
+    const { error } = await sb.from('settlements').insert({
+      hc: lastSettlement.hc,
+      score_fav: lastSettlement.score_fav,
+      score_dog: lastSettlement.score_dog,
+      payout_rate: lastSettlement.payout_rate,
+      participants: lastSettlement.participants,
+      total_profit: lastSettlement.total_profit,
+      house_profit: lastSettlement.house_profit,
+      memo
+    });
+    if (error) throw error;
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--win)';
+    statusEl.textContent = '保存しました。';
+    document.getElementById('memoInput').value = '';
+  } catch(err){
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--lose)';
+    statusEl.textContent = '保存に失敗しました: ' + (err.message || err);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 この結果を保存';
+  }
+});
+
+/* ---------------- Load history from Supabase ---------------- */
+const loadHistoryBtn = document.getElementById('loadHistoryBtn');
+if (loadHistoryBtn) loadHistoryBtn.addEventListener('click', async ()=>{
+  const listEl = document.getElementById('historyList');
+  listEl.innerHTML = '<div class="history-empty">読み込み中…</div>';
+  if (!sb){
+    listEl.innerHTML = '<div class="history-empty">保存機能を読み込めませんでした。</div>';
+    return;
+  }
+  try {
+    const { data, error } = await sb
+      .from('settlements')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    if (!data || data.length === 0){
+      listEl.innerHTML = '<div class="history-empty">まだ保存された履歴がありません。</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    data.forEach(row=>{
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      const dt = new Date(row.created_at);
+      const dateStr = `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+      const houseSign = row.house_profit > 0 ? '+' : (row.house_profit < 0 ? '' : '±');
+      const houseCls = row.house_profit > 0 ? 'win' : (row.house_profit < 0 ? 'lose' : '');
+      const participants = Array.isArray(row.participants) ? row.participants : [];
+      const detailRows = participants.map(p=>{
+        const sign = p.profit > 0 ? '+' : (p.profit < 0 ? '' : '±');
+        const sideLabel = p.side === 'fav' ? 'ハンデ側' : '相手側';
+        return `${p.name}（${sideLabel}・${p.amount.toLocaleString()}円）: ${sign}${p.profit.toLocaleString()}円`;
+      }).join('<br>');
+
+      div.innerHTML = `
+        <div class="h-top">
+          <div>
+            <div class="h-hc">HC ${row.hc}　${row.score_fav} - ${row.score_dog}</div>
+            <div class="h-date">${dateStr}／配当率${row.payout_rate}%／参加者${participants.length}名</div>
+          </div>
+          <div class="h-house ${houseCls}">${houseSign}${row.house_profit.toLocaleString()}円</div>
+        </div>
+        ${row.memo ? `<div class="h-memo">${row.memo}</div>` : ''}
+        <div class="h-detail">${detailRows}</div>
+      `;
+      div.addEventListener('click', ()=> div.classList.toggle('expanded'));
+      listEl.appendChild(div);
+    });
+  } catch(err){
+    listEl.innerHTML = `<div class="history-empty">読み込みに失敗しました: ${err.message || err}</div>`;
+  }
+});
+</script>
+</body>
+</html>
