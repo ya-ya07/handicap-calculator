@@ -178,6 +178,9 @@
   .match-item .m-sub{ font-size:11px; color:var(--text-dim); margin-top:2px; }
   .match-item .m-right{ text-align:right; }
   .match-item .m-house{ font-weight:800; font-size:14px; font-variant-numeric:tabular-nums; }
+  .match-item .m-right{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .match-item .m-actions{ display:flex; gap:6px; }
+  .match-item .m-actions .btn{ white-space:nowrap; }
   .match-item .m-house.win{ color:var(--win); }
   .match-item .m-house.lose{ color:var(--lose); }
   .empty-note{ font-size:12.5px; color:var(--text-dim); text-align:center; padding:14px; }
@@ -338,7 +341,7 @@
       <div class="or-divider">または手入力（任意の細かさでOK）</div>
       <input type="text" id="hcInput" list="hcListDatalist" placeholder="例: 1.45 / 1半 / 1半45 / 2" autocomplete="off" style="margin-bottom:10px;">
       <datalist id="hcListDatalist"></datalist>
-      <div class="hc-hint" style="margin-bottom:14px;">入力例: 0.3 ／ 1.45 ／ 1半 ／ 1半45 ／ 2 ／ 2半67　※桁数は自由／「半」の代わりに半角/全角の H も可</div>
+      <div class="hc-hint" style="margin-bottom:14px;">入力例: 0.3 ／ 1.45 ／ 1半 ／ 1半45 ／ 2 ／ 2半67　※桁数は自由／「半」の代わりに半角/全角の H も可／未定なら空欄のままでもOK（後から編集で追加できます）</div>
 
       <span class="label">メモ（任意）</span>
       <input type="text" id="newMatchMemo" placeholder="例: 7/24 巨人-阪神" style="margin-bottom:10px;">
@@ -357,8 +360,11 @@
     <div id="betsList"><div class="empty-note">まだ参加者がいません。</div></div>
 
     <div id="addBetForm">
+      <select id="betParticipantSelect" style="margin-bottom:8px;">
+        <option value="">登録済みの参加者から選ぶ…</option>
+      </select>
       <div class="add-bet-form">
-        <input type="text" id="betName" placeholder="名前" list="participantList" autocomplete="off">
+        <input type="text" id="betName" placeholder="または新しい名前を入力" list="participantList" autocomplete="off">
         <datalist id="participantList"></datalist>
         <div class="p-side-toggle" id="betSideToggle" data-side="fav">
           <button type="button" class="p-side-btn active" data-side="fav">ハンデ側</button>
@@ -366,21 +372,6 @@
         </div>
         <input type="number" id="betAmount" placeholder="賭け金" inputmode="numeric">
         <button type="button" class="btn btn-small" id="addBetBtn">追加</button>
-      </div>
-    </div>
-
-    <div class="summary-box" id="summaryBox" style="display:none;">
-      <div class="summary-line">
-        <span>参加者 合計収支</span>
-        <span class="v" id="summaryTotal">±0 円</span>
-      </div>
-      <div class="summary-line">
-        <span>運営（あなた）の収支<span style="opacity:.7;">　※参加者合計の逆</span></span>
-        <span class="v" id="summaryHouse">±0 円</span>
-      </div>
-      <div class="summary-line">
-        <span>内訳</span>
-        <span class="v" id="summaryBreakdown" style="font-size:12px; font-weight:600;">-</span>
       </div>
     </div>
   </div>
@@ -509,6 +500,9 @@ function canonicalHC(p){
   const digits = String(p.r).split('.')[1] || '0';
   return p.isHalf ? `${p.n}半${digits}` : `${p.n}.${digits}`;
 }
+function hcLabel(hc){
+  return (hc === null || hc === undefined || hc === '') ? '未登録' : hc;
+}
 function evaluate(p, margin){
   const b = p.isHalf ? p.n + 1 : p.n;
   if (margin < b) return { t: 'lose', p: 100 };
@@ -621,6 +615,11 @@ document.getElementById('npbSearchBtn').addEventListener('click', async ()=>{
   }
 });
 
+function formatNpbDateLabel(dateStr){
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `${m}/${d}`;
+}
+
 function showSideChoice(dateStr, game){
   const box = document.getElementById('npbSideChoice');
   box.style.display = 'block';
@@ -639,7 +638,8 @@ function showSideChoice(dateStr, game){
         favTeam: favIsHome ? game.homeTeam : game.awayTeam,
         dogTeam: favIsHome ? game.awayTeam : game.homeTeam,
       };
-      document.getElementById('newMatchName').value = `${npbSelection.favTeam} vs ${npbSelection.dogTeam}`;
+      document.getElementById('newMatchName').value =
+        `${formatNpbDateLabel(dateStr)} ${game.homeTeam} vs ${game.awayTeam}`;
       box.querySelectorAll('.npb-side-btn').forEach(b=>{
         b.style.borderColor = 'var(--line)';
         b.style.background = 'var(--panel-2)';
@@ -652,11 +652,16 @@ function showSideChoice(dateStr, game){
 
 /* ---------------- Create match ---------------- */
 document.getElementById('createMatchBtn').addEventListener('click', async ()=>{
-  const parsed = parseHC(hcInput.value);
-  if (!parsed){
-    hcInput.classList.add('invalid');
-    alert('ハンデの表記が正しくありません。例: 1.4 / 1半 / 1半4 / 2');
-    return;
+  const hcRaw = hcInput.value.trim();
+  let hcValue = null;
+  if (hcRaw !== ''){
+    const parsed = parseHC(hcRaw);
+    if (!parsed){
+      hcInput.classList.add('invalid');
+      alert('ハンデの表記が正しくありません。例: 1.4 / 1半 / 1半4 / 2　（未入力のままでも登録できます）');
+      return;
+    }
+    hcValue = canonicalHC(parsed);
   }
   const rate = parseFloat(document.getElementById('newMatchRate').value);
   const memo = document.getElementById('newMatchMemo').value.trim() || null;
@@ -668,7 +673,7 @@ document.getElementById('createMatchBtn').addEventListener('click', async ()=>{
   try {
     const { data, error } = await sb.from('matches').insert({
       name,
-      hc: canonicalHC(parsed),
+      hc: hcValue,
       memo,
       payout_rate: isNaN(rate) ? 90 : rate,
       settled: false,
@@ -696,16 +701,30 @@ document.getElementById('createMatchBtn').addEventListener('click', async ()=>{
 /* ---------------- Participant roster ---------------- */
 async function loadParticipants(){
   const dl = document.getElementById('participantList');
-  if (!sb || !dl) return;
+  const sel = document.getElementById('betParticipantSelect');
+  if (!sb) return;
   try {
     const { data, error } = await sb.from('participants').select('name').order('name', { ascending: true });
     if (error) throw error;
-    dl.innerHTML = '';
-    (data || []).forEach(p=>{
-      const opt = document.createElement('option');
-      opt.value = p.name;
-      dl.appendChild(opt);
-    });
+
+    if (dl){
+      dl.innerHTML = '';
+      (data || []).forEach(p=>{
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        dl.appendChild(opt);
+      });
+    }
+
+    if (sel){
+      sel.innerHTML = '<option value="">登録済みの参加者から選ぶ…</option>';
+      (data || []).forEach(p=>{
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = p.name;
+        sel.appendChild(opt);
+      });
+    }
   } catch(err){
     // Non-fatal — the bet name field still works as free text without autocomplete.
     console.error('participant list load failed', err);
@@ -750,14 +769,40 @@ async function loadMatches(){
         const cls = m.house_profit > 0 ? 'win' : (m.house_profit < 0 ? 'lose' : '');
         rightHtml = `<div class="m-house ${cls}">${sign}${Math.round(m.house_profit).toLocaleString()}円</div><div class="m-sub">${statusLabel}</div>`;
       }
+      const actionsHtml = `
+        <div class="m-actions">
+          <button type="button" class="btn btn-outline btn-small m-edit-btn">編集</button>
+          ${(!m.settled && m.npb_date) ? '<button type="button" class="btn btn-outline btn-small m-fetch-btn">⚾ 結果取得</button>' : ''}
+          <button type="button" class="btn btn-outline btn-small m-delete-btn">削除</button>
+        </div>
+      `;
       div.innerHTML = `
         <div>
-          <div class="m-hc">${m.name ? m.name : 'HC ' + m.hc}${m.settled ? `　${m.score_fav} - ${m.score_dog}` : ''}</div>
-          <div class="m-sub">${m.name ? 'HC ' + m.hc + '　／　' : ''}${dateStr}${m.memo ? '／' + m.memo : ''}</div>
+          <div class="m-hc">${m.name ? m.name : 'HC ' + hcLabel(m.hc)}${m.settled ? `　${m.score_fav} - ${m.score_dog}` : ''}</div>
+          <div class="m-sub">${m.name ? 'HC ' + hcLabel(m.hc) + '　／　' : ''}${dateStr}${m.memo ? '／' + m.memo : ''}</div>
         </div>
-        <div class="m-right">${rightHtml}</div>
+        <div class="m-right">${rightHtml}${actionsHtml}</div>
       `;
       div.addEventListener('click', ()=> selectMatch(m));
+      div.querySelector('.m-edit-btn').addEventListener('click', async (ev)=>{
+        ev.stopPropagation();
+        await selectMatch(m);
+        const editBtn = document.getElementById('editMatchBtn');
+        if (editBtn) editBtn.click();
+      });
+      const fetchBtn = div.querySelector('.m-fetch-btn');
+      if (fetchBtn){
+        fetchBtn.addEventListener('click', async (ev)=>{
+          ev.stopPropagation();
+          await selectMatch(m);
+          const npbBtn = document.getElementById('npbFetchScoreBtn');
+          if (npbBtn) npbBtn.click();
+        });
+      }
+      div.querySelector('.m-delete-btn').addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        deleteMatch(m);
+      });
       listEl.appendChild(div);
     });
   } catch(err){
@@ -786,7 +831,7 @@ async function selectMatch(m){
 
   document.getElementById('matchInfo').innerHTML =
     (m.name ? `<div style="font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px;">${m.name}</div>` : '') +
-    `HC <b style="color:var(--text);">${m.hc}</b> ／ 勝ち配当率 <b style="color:var(--text);">${m.payout_rate}%</b>${m.memo ? '　／　' + m.memo : ''}`;
+    `HC <b style="color:var(--text);">${hcLabel(m.hc)}</b> ／ 勝ち配当率 <b style="color:var(--text);">${m.payout_rate}%</b>${m.memo ? '　／　' + m.memo : ''}`;
 
   const scoreEntry = document.getElementById('scoreEntry');
   if (m.settled){
@@ -797,7 +842,7 @@ async function selectMatch(m){
       : '';
     scoreEntry.innerHTML = `
       ${npbBtnHtml}
-      <div class="row" style="margin-bottom:12px;">
+      <div class="row" style="margin-bottom:8px;">
         <div class="col">
           <span class="label" style="margin-bottom:6px;">ハンデ側の得点</span>
           <input type="number" id="matchScoreFav" placeholder="0" inputmode="numeric">
@@ -807,9 +852,19 @@ async function selectMatch(m){
           <input type="number" id="matchScoreDog" placeholder="0" inputmode="numeric">
         </div>
       </div>
-      <button type="button" class="btn" id="settleMatchBtn">この結果で確定して精算する</button>
+      <div style="font-size:11.5px; color:var(--text-dim);">両方の得点を入力すると自動的に確定・精算されます。</div>
     `;
-    document.getElementById('settleMatchBtn').addEventListener('click', settleCurrentMatch);
+    const scoreFavEl = document.getElementById('matchScoreFav');
+    const scoreDogEl = document.getElementById('matchScoreDog');
+    const maybeAutoSettle = ()=>{
+      const a = scoreFavEl.value.trim();
+      const b = scoreDogEl.value.trim();
+      if (a !== '' && b !== '' && !isNaN(parseFloat(a)) && !isNaN(parseFloat(b))){
+        settleCurrentMatch();
+      }
+    };
+    scoreFavEl.addEventListener('change', maybeAutoSettle);
+    scoreDogEl.addEventListener('change', maybeAutoSettle);
     if (m.npb_date){
       document.getElementById('npbFetchScoreBtn').addEventListener('click', ()=> fetchNpbScoreForCurrentMatch(m));
     }
@@ -839,18 +894,26 @@ document.getElementById('cancelMatchEditBtn').addEventListener('click', ()=>{
 
 document.getElementById('saveMatchEditBtn').addEventListener('click', async ()=>{
   if (!currentMatch) return;
-  const hcRaw = document.getElementById('editHcInput').value;
-  const parsed = parseHC(hcRaw);
-  if (!parsed){
+  const hcRaw = document.getElementById('editHcInput').value.trim();
+  let parsed = null;
+  let hc = null;
+  if (hcRaw !== ''){
+    parsed = parseHC(hcRaw);
+    if (!parsed){
+      document.getElementById('editHcInput').classList.add('invalid');
+      alert('ハンデの表記が正しくありません。例: 1.4 / 1半 / 1半4 / 2');
+      return;
+    }
+    hc = canonicalHC(parsed);
+  } else if (currentMatch.settled){
     document.getElementById('editHcInput').classList.add('invalid');
-    alert('ハンデの表記が正しくありません。例: 1.4 / 1半 / 1半4 / 2');
+    alert('確定済みの試合はハンデを空にできません（収支の再計算ができなくなるため）。');
     return;
   }
   const name = document.getElementById('editMatchName').value.trim() || null;
   const memo = document.getElementById('editMatchMemo').value.trim() || null;
   const rate = parseFloat(document.getElementById('editMatchRate').value);
   const finalRate = isNaN(rate) ? currentMatch.payout_rate : rate;
-  const hc = canonicalHC(parsed);
 
   const btn = document.getElementById('saveMatchEditBtn');
   btn.disabled = true; btn.textContent = '保存中…';
@@ -887,22 +950,28 @@ document.getElementById('saveMatchEditBtn').addEventListener('click', async ()=>
 });
 
 /* ---------------- Delete match ---------------- */
-document.getElementById('deleteMatchBtn').addEventListener('click', async ()=>{
-  if (!currentMatch) return;
-  const label = currentMatch.name || `HC ${currentMatch.hc}`;
+async function deleteMatch(m){
+  const label = m.name || `HC ${hcLabel(m.hc)}`;
   if (!confirm(`「${label}」を削除しますか？\nこの試合に登録されている参加者データもすべて削除され、元に戻せません。`)) return;
 
   try {
-    const { error } = await sb.from('matches').delete().eq('id', currentMatch.id);
+    const { error } = await sb.from('matches').delete().eq('id', m.id);
     if (error) throw error;
-    currentMatch = null;
-    currentBets = [];
-    document.getElementById('matchDetailCard').style.display = 'none';
-    document.getElementById('betsCard').style.display = 'none';
+    if (currentMatch && currentMatch.id === m.id){
+      currentMatch = null;
+      currentBets = [];
+      document.getElementById('matchDetailCard').style.display = 'none';
+      document.getElementById('betsCard').style.display = 'none';
+    }
     await loadMatches();
   } catch(err){
     showError('削除に失敗しました: ' + (err.message||err));
   }
+}
+
+document.getElementById('deleteMatchBtn').addEventListener('click', ()=>{
+  if (!currentMatch) return;
+  deleteMatch(currentMatch);
 });
 
 /* ---------------- Bets: load & render ---------------- */
@@ -942,14 +1011,14 @@ function renderBets(){
         const sign = profit > 0 ? '+' : (profit < 0 ? '' : '±');
         div.className = 'bet-row ' + outcome.t;
         div.innerHTML = `
-          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ ${Number(b.amount).toLocaleString()}円</div></div>
+          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ 賭金 ${Number(b.amount).toLocaleString()}円</div></div>
           <div class="b-tag">${tagText(outcome)}</div>
           <div class="b-amount">${sign}${Math.round(profit).toLocaleString()}円</div>
         `;
       } else {
         div.className = 'bet-row';
         div.innerHTML = `
-          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ ${Number(b.amount).toLocaleString()}円</div></div>
+          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ 賭金 ${Number(b.amount).toLocaleString()}円</div></div>
           <div class="b-tag"></div>
           <button type="button" class="btn btn-outline btn-small" data-bet-id="${b.id}">削除</button>
         `;
@@ -958,18 +1027,22 @@ function renderBets(){
       listEl.appendChild(div);
     });
   }
-
-  if (m.settled){
-    document.getElementById('summaryBox').style.display = 'block';
-  } else {
-    document.getElementById('summaryBox').style.display = 'none';
-  }
 }
 
 // The hc string is stored in canonical, always-reparseable form (see canonicalHC),
 // so we can just use parseHC directly to read it back.
 
 /* ---------------- Add / remove bets ---------------- */
+const betParticipantSelect = document.getElementById('betParticipantSelect');
+if (betParticipantSelect){
+  betParticipantSelect.addEventListener('change', ()=>{
+    if (betParticipantSelect.value){
+      document.getElementById('betName').value = betParticipantSelect.value;
+      document.getElementById('betName').classList.remove('invalid');
+    }
+  });
+}
+
 const betSideToggle = document.getElementById('betSideToggle');
 betSideToggle.querySelectorAll('.p-side-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -999,6 +1072,7 @@ document.getElementById('addBetBtn').addEventListener('click', async ()=>{
     });
     if (error) throw error;
     nameEl.value = ''; amountEl.value = '';
+    if (betParticipantSelect) betParticipantSelect.value = '';
     await loadBets(currentMatch.id);
     await loadParticipants();
   } catch(err){
@@ -1042,6 +1116,7 @@ async function fetchNpbScoreForCurrentMatch(m){
     const dogScore = favIsHome ? game.awayScore : game.homeScore;
     document.getElementById('matchScoreFav').value = favScore;
     document.getElementById('matchScoreDog').value = dogScore;
+    await settleCurrentMatch();
   } catch(err){
     showError('NPBスコアの取得に失敗しました: ' + (err.message || err));
   } finally {
@@ -1057,7 +1132,14 @@ async function settleCurrentMatch(){
   if (currentBets.length === 0){ alert('参加者を1人以上追加してから確定してください。'); return; }
 
   const parsed = parseHC(currentMatch.hc);
-  if (!parsed){ showError('この試合のハンデ表記を解釈できませんでした: ' + currentMatch.hc); return; }
+  if (!parsed){
+    if (!currentMatch.hc){
+      alert('この試合はハンデが未登録です。「編集」からハンデを設定してから確定してください。');
+    } else {
+      showError('この試合のハンデ表記を解釈できませんでした: ' + currentMatch.hc);
+    }
+    return;
+  }
 
   const margin = sFav - sDog;
   const favOutcome = evaluateWithSpillover(parsed, margin);
@@ -1070,8 +1152,10 @@ async function settleCurrentMatch(){
   });
   const house = -total;
 
-  const btn = document.getElementById('settleMatchBtn');
-  btn.disabled = true; btn.textContent = '確定中…';
+  const scoreFavEl = document.getElementById('matchScoreFav');
+  const scoreDogEl = document.getElementById('matchScoreDog');
+  if (scoreFavEl) scoreFavEl.disabled = true;
+  if (scoreDogEl) scoreDogEl.disabled = true;
   try {
     const { data, error } = await sb.from('matches').update({
       score_fav: sFav, score_dog: sDog, settled: true,
@@ -1083,41 +1167,10 @@ async function settleCurrentMatch(){
     selectMatch(data);
   } catch(err){
     showError('確定処理に失敗しました: ' + (err.message||err));
-  } finally {
-    btn.disabled = false; btn.textContent = 'この結果で確定して精算する';
+    if (scoreFavEl) scoreFavEl.disabled = false;
+    if (scoreDogEl) scoreDogEl.disabled = false;
   }
 }
-
-// After settling, render summary numbers (called from renderBets via selectMatch reload)
-const _origRenderBets = renderBets;
-renderBets = function(){
-  _origRenderBets();
-  if (currentMatch && currentMatch.settled){
-    const parsed = parseHC(currentMatch.hc);
-    const margin = currentMatch.score_fav - currentMatch.score_dog;
-    const favOutcome = evaluateWithSpillover(parsed, margin);
-    const dogOutcome = favOutcome.t === 'push' ? {t:'push'} : {t: favOutcome.t==='win'?'lose':'win', p: favOutcome.p};
-    let total = 0, winners = 0, losers = 0, pushes = 0;
-    currentBets.forEach(b=>{
-      const outcome = b.side === 'fav' ? favOutcome : dogOutcome;
-      const profit = profitOf(outcome, b.amount, currentMatch.payout_rate);
-      total += profit;
-      if (outcome.t === 'push') pushes++;
-      else if (profit > 0) winners++;
-      else losers++;
-    });
-    const house = -total;
-    const totalEl = document.getElementById('summaryTotal');
-    const houseEl = document.getElementById('summaryHouse');
-    const tSign = total > 0 ? '+' : (total < 0 ? '' : '±');
-    totalEl.textContent = `${tSign}${Math.round(total).toLocaleString()} 円`;
-    totalEl.className = 'v' + (total > 0 ? ' win' : (total < 0 ? ' lose' : ''));
-    const hSign = house > 0 ? '+' : (house < 0 ? '' : '±');
-    houseEl.textContent = `${hSign}${Math.round(house).toLocaleString()} 円`;
-    houseEl.className = 'v' + (house > 0 ? ' win' : (house < 0 ? ' lose' : ''));
-    document.getElementById('summaryBreakdown').textContent = `勝ち${winners}名 ／ 負け${losers}名 ／ 引き分け${pushes}名`;
-  }
-};
 
 /* ---------------- Period summary (aggregate profit by participant) ---------------- */
 function startOfWeek(d){
