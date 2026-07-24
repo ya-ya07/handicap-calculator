@@ -158,6 +158,17 @@
     border:1px solid var(--line);
     color:var(--text-dim);
   }
+  .btn-outline.active{
+    border-color:var(--gold);
+    background:rgba(184,147,74,0.14);
+    color:var(--gold-bright);
+  }
+  .week-nav{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:10px; gap:8px;
+  }
+  .week-nav #weekLabel{ font-size:13px; font-weight:700; color:var(--text); white-space:nowrap; }
+  .week-nav .btn{ width:auto; white-space:nowrap; }
 
   .status-badge{
     display:inline-block; font-size:11px; font-weight:700; padding:3px 9px;
@@ -291,6 +302,14 @@
     <div class="card-title">
       <span>① 試合一覧</span>
       <button type="button" class="btn btn-outline btn-small" id="refreshMatchesBtn">更新</button>
+    </div>
+    <div class="week-nav" id="weekNav">
+      <button type="button" class="btn btn-outline btn-small" id="weekPrevBtn">◀ 前の週</button>
+      <span id="weekLabel">-</span>
+      <button type="button" class="btn btn-outline btn-small" id="weekNextBtn">次の週 ▶</button>
+    </div>
+    <div style="text-align:right; margin-bottom:10px;">
+      <button type="button" class="btn btn-outline btn-small" id="matchWeekToggleBtn">すべて表示</button>
     </div>
     <div id="matchList"><div class="empty-note">読み込み中…</div></div>
     <button type="button" class="btn btn-ghost" id="newMatchToggleBtn" style="margin-top:10px;">＋ 新しい試合を登録</button>
@@ -760,23 +779,64 @@ async function findOrCreateParticipant(name){
 }
 
 /* ---------------- Load & render match list ---------------- */
+// The "match date" used for sorting/filtering: NPB date if linked, otherwise
+// the settlement date if settled, otherwise when it was registered.
+function matchEffectiveDate(m){
+  if (m.npb_date) return new Date(m.npb_date + 'T00:00:00');
+  return new Date(m.settled_at || m.created_at);
+}
+
+let matchListWeekOnly = true;
+let currentWeekStart = startOfWeek(new Date()); // Monday 00:00 of the week containing today
+
+function formatWeekLabel(weekStart){
+  const end = new Date(weekStart);
+  end.setDate(end.getDate() + 6);
+  return `${weekStart.getMonth()+1}/${weekStart.getDate()} 〜 ${end.getMonth()+1}/${end.getDate()}`;
+}
+
 async function loadMatches(){
   const listEl = document.getElementById('matchList');
   if (!sb){ listEl.innerHTML = '<div class="empty-note">保存機能を読み込めませんでした。</div>'; return; }
   listEl.innerHTML = '<div class="empty-note">読み込み中…</div>';
+
+  const weekNav = document.getElementById('weekNav');
+  const weekLabel = document.getElementById('weekLabel');
+  weekNav.style.display = matchListWeekOnly ? 'flex' : 'none';
+  if (matchListWeekOnly) weekLabel.textContent = formatWeekLabel(currentWeekStart);
+
   try {
-    const { data, error } = await sb.from('matches').select('*').order('created_at', { ascending: false }).limit(50);
+    const { data, error } = await sb.from('matches').select('*').order('created_at', { ascending: false }).limit(200);
     if (error) throw error;
     if (!data || data.length === 0){
       listEl.innerHTML = '<div class="empty-note">まだ試合が登録されていません。</div>';
       return;
     }
+
+    let rows = data.slice().sort((a, b) => matchEffectiveDate(b) - matchEffectiveDate(a));
+
+    if (matchListWeekOnly){
+      const weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7); // exclusive upper bound
+      rows = rows.filter(m => {
+        const d = matchEffectiveDate(m);
+        return d >= currentWeekStart && d < weekEnd;
+      });
+    }
+
+    if (rows.length === 0){
+      listEl.innerHTML = '<div class="empty-note">この期間に試合はありません。</div>';
+      return;
+    }
+
     listEl.innerHTML = '';
-    data.forEach(m=>{
+    rows.forEach(m=>{
       const div = document.createElement('div');
       div.className = 'match-item' + (currentMatch && currentMatch.id === m.id ? ' selected' : '');
-      const dt = new Date(m.created_at);
-      const dateStr = `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+      const dt = matchEffectiveDate(m);
+      const dateStr = m.npb_date
+        ? `${dt.getMonth()+1}/${dt.getDate()}`
+        : `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
       const statusLabel = m.settled ? '確定済み' : '未確定';
       const rightHtml = `<span class="status-badge ${m.settled ? 'settled':'open'}">${statusLabel}</span>`;
       const actionsHtml = `
@@ -823,6 +883,26 @@ document.getElementById('refreshMatchesBtn').addEventListener('click', ()=>{
   loadMatches();
   if (currentMatch) loadBets(currentMatch.id);
 });
+
+document.getElementById('weekPrevBtn').addEventListener('click', ()=>{
+  currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+  loadMatches();
+});
+document.getElementById('weekNextBtn').addEventListener('click', ()=>{
+  currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+  loadMatches();
+});
+
+const matchWeekToggleBtn = document.getElementById('matchWeekToggleBtn');
+if (matchWeekToggleBtn){
+  matchWeekToggleBtn.addEventListener('click', ()=>{
+    matchListWeekOnly = !matchListWeekOnly;
+    matchWeekToggleBtn.textContent = matchListWeekOnly ? 'すべて表示' : '週表示に戻る';
+    matchWeekToggleBtn.classList.toggle('active', !matchListWeekOnly);
+    if (matchListWeekOnly) currentWeekStart = startOfWeek(new Date());
+    loadMatches();
+  });
+}
 
 /* ---------------- Select a match ---------------- */
 async function selectMatch(m){
@@ -1018,10 +1098,11 @@ function renderBets(){
       if (m.settled){
         const outcome = b.side === 'fav' ? favOutcome : dogOutcome;
         const profit = profitOf(outcome, b.amount, m.payout_rate);
+        const payout = b.amount + profit;
         const sign = profit > 0 ? '+' : (profit < 0 ? '' : '±');
         div.className = 'bet-row ' + outcome.t;
         div.innerHTML = `
-          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ 賭金 ${Number(b.amount).toLocaleString()}円</div></div>
+          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ 賭金 ${Number(b.amount).toLocaleString()}円 ／ 戻し ${Math.round(payout).toLocaleString()}円</div></div>
           <div class="b-tag">${tagText(outcome)}</div>
           <div class="b-amount">${sign}${Math.round(profit).toLocaleString()}円</div>
         `;
