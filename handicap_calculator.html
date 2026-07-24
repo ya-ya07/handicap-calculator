@@ -182,6 +182,25 @@
   .match-item .m-house.lose{ color:var(--lose); }
   .empty-note{ font-size:12.5px; color:var(--text-dim); text-align:center; padding:14px; }
 
+  .npb-game-item{
+    display:flex; justify-content:space-between; align-items:center;
+    border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+    margin-bottom:6px; background:var(--panel-2); cursor:pointer; font-size:13px;
+  }
+  .npb-game-item:hover{ border-color:var(--gold-bright); }
+  .npb-game-item.selected{ border-color:var(--gold); background:rgba(184,147,74,0.10); }
+  .npb-game-item .n-teams{ font-weight:700; }
+  .npb-game-item .n-meta{ font-size:11px; color:var(--text-dim); }
+  .npb-game-item .n-score{ font-weight:800; font-variant-numeric:tabular-nums; }
+
+  .npb-side-btn{
+    width:100%; background:var(--panel-2); border:1px solid var(--line);
+    color:var(--text); border-radius:6px; padding:10px; font-size:13px;
+    font-weight:600; cursor:pointer; margin-bottom:6px; font-family:inherit;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+  }
+  .npb-side-btn:hover{ border-color:var(--gold-bright); }
+
   /* Bets */
   .bet-row{
     display:grid; grid-template-columns: 1fr auto auto; gap:8px; align-items:center;
@@ -242,6 +261,15 @@
     <button type="button" class="btn btn-ghost" id="newMatchToggleBtn" style="margin-top:10px;">＋ 新しい試合を登録</button>
 
     <div id="newMatchForm" style="display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--line);">
+      <span class="label">⚾ NPBの試合から選ぶ（任意）</span>
+      <div class="row" style="margin-bottom:8px;">
+        <input type="date" id="npbDateInput" style="flex:1;">
+        <button type="button" class="btn btn-outline btn-small" id="npbSearchBtn" style="width:auto; white-space:nowrap;">試合を検索</button>
+      </div>
+      <div id="npbGameList" style="margin-bottom:6px;"></div>
+      <div id="npbSideChoice" style="display:none; margin-bottom:14px;"></div>
+      <div class="or-divider">または下を直接入力</div>
+
       <span class="label">試合名</span>
       <input type="text" id="newMatchName" placeholder="例: 巨人 vs 阪神" style="margin-bottom:14px;">
 
@@ -358,6 +386,18 @@ const SUPABASE_URL = 'https://oohrsukaxbitphgxossl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vaHJzdWtheGJpdHBoZ3hvc3NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NzYwMzgsImV4cCI6MjEwMDQ1MjAzOH0.d9ubESZqLBqp4WuLSCKyhxw_ErKfWbM_IzIusD8Zi6A';
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
+async function fetchNpbDay(dateStr){
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/npb-day?date=${dateStr}`, {
+    headers: {
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      apikey: SUPABASE_ANON_KEY,
+    },
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
 function showError(msg){
   const banner = document.getElementById('errBanner');
   if (banner){ banner.style.display = 'block'; banner.textContent = msg; }
@@ -473,6 +513,84 @@ newMatchToggleBtn.addEventListener('click', ()=>{
   newMatchForm.style.display = newMatchForm.style.display === 'none' ? 'block' : 'none';
 });
 
+/* ---------------- NPB schedule picker ---------------- */
+let npbSelection = null; // { date, homeTeam, awayTeam, favTeam, dogTeam }
+
+const npbDateInput = document.getElementById('npbDateInput');
+{
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  npbDateInput.value = `${yyyy}-${mm}-${dd}`;
+}
+
+document.getElementById('npbSearchBtn').addEventListener('click', async ()=>{
+  const listEl = document.getElementById('npbGameList');
+  const dateStr = npbDateInput.value;
+  if (!dateStr){ alert('日付を選択してください。'); return; }
+  listEl.innerHTML = '<div class="empty-note">読み込み中…</div>';
+  document.getElementById('npbSideChoice').style.display = 'none';
+  npbSelection = null;
+  try {
+    const data = await fetchNpbDay(dateStr);
+    if (!data.games || data.games.length === 0){
+      listEl.innerHTML = '<div class="empty-note">この日の試合は見つかりませんでした。</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    data.games.forEach(g=>{
+      const div = document.createElement('div');
+      div.className = 'npb-game-item';
+      const scoreText = g.finished ? `${g.homeScore} - ${g.awayScore}` : (g.status || '');
+      div.innerHTML = `
+        <div>
+          <div class="n-teams">${g.homeTeam} vs ${g.awayTeam}</div>
+          <div class="n-meta">${g.venue || ''}${g.finished ? '　試合終了' : ''}</div>
+        </div>
+        <div class="n-score">${scoreText}</div>
+      `;
+      div.addEventListener('click', ()=>{
+        document.querySelectorAll('.npb-game-item').forEach(el=>el.classList.remove('selected'));
+        div.classList.add('selected');
+        showSideChoice(dateStr, g);
+      });
+      listEl.appendChild(div);
+    });
+  } catch(err){
+    listEl.innerHTML = `<div class="empty-note">取得に失敗しました: ${err.message||err}</div>`;
+  }
+});
+
+function showSideChoice(dateStr, game){
+  const box = document.getElementById('npbSideChoice');
+  box.style.display = 'block';
+  box.innerHTML = `
+    <span class="label">どちらを「ハンデ側」にしますか？</span>
+    <button type="button" class="npb-side-btn" data-side="home">${game.homeTeam}（ホーム）をハンデ側にする</button>
+    <button type="button" class="npb-side-btn" data-side="away">${game.awayTeam}（アウェイ）をハンデ側にする</button>
+  `;
+  box.querySelectorAll('.npb-side-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const favIsHome = btn.dataset.side === 'home';
+      npbSelection = {
+        date: dateStr,
+        homeTeam: game.homeTeam,
+        awayTeam: game.awayTeam,
+        favTeam: favIsHome ? game.homeTeam : game.awayTeam,
+        dogTeam: favIsHome ? game.awayTeam : game.homeTeam,
+      };
+      document.getElementById('newMatchName').value = `${npbSelection.favTeam} vs ${npbSelection.dogTeam}`;
+      box.querySelectorAll('.npb-side-btn').forEach(b=>{
+        b.style.borderColor = 'var(--line)';
+        b.style.background = 'var(--panel-2)';
+      });
+      btn.style.borderColor = 'var(--gold)';
+      btn.style.background = 'rgba(184,147,74,0.14)';
+    });
+  });
+}
+
 /* ---------------- Create match ---------------- */
 document.getElementById('createMatchBtn').addEventListener('click', async ()=>{
   const parsed = parseHC(hcInput.value);
@@ -494,12 +612,18 @@ document.getElementById('createMatchBtn').addEventListener('click', async ()=>{
       hc: canonicalHC(parsed),
       memo,
       payout_rate: isNaN(rate) ? 90 : rate,
-      settled: false
+      settled: false,
+      npb_date: npbSelection ? npbSelection.date : null,
+      npb_team_fav: npbSelection ? npbSelection.favTeam : null,
+      npb_team_dog: npbSelection ? npbSelection.dogTeam : null,
     }).select().single();
     if (error) throw error;
     newMatchForm.style.display = 'none';
     document.getElementById('newMatchMemo').value = '';
     document.getElementById('newMatchName').value = '';
+    document.getElementById('npbGameList').innerHTML = '';
+    document.getElementById('npbSideChoice').style.display = 'none';
+    npbSelection = null;
     hcInput.value = '';
     await loadMatches();
     selectMatch(data);
@@ -575,7 +699,11 @@ async function selectMatch(m){
   if (m.settled){
     scoreEntry.innerHTML = `<div style="font-size:14px; color:var(--text-dim);">確定済みの得点: <b style="color:var(--text); font-size:16px;">${m.score_fav} - ${m.score_dog}</b>（ハンデ側 - 相手側）</div>`;
   } else {
+    const npbBtnHtml = m.npb_date
+      ? `<button type="button" class="btn btn-outline" id="npbFetchScoreBtn" style="margin-bottom:12px;">⚾ NPBから最終スコアを取得（${m.npb_team_fav} vs ${m.npb_team_dog}）</button>`
+      : '';
     scoreEntry.innerHTML = `
+      ${npbBtnHtml}
       <div class="row" style="margin-bottom:12px;">
         <div class="col">
           <span class="label" style="margin-bottom:6px;">ハンデ側の得点</span>
@@ -589,6 +717,9 @@ async function selectMatch(m){
       <button type="button" class="btn" id="settleMatchBtn">この結果で確定して精算する</button>
     `;
     document.getElementById('settleMatchBtn').addEventListener('click', settleCurrentMatch);
+    if (m.npb_date){
+      document.getElementById('npbFetchScoreBtn').addEventListener('click', ()=> fetchNpbScoreForCurrentMatch(m));
+    }
   }
 
   document.getElementById('addBetForm').style.display = m.settled ? 'none' : 'block';
@@ -702,6 +833,37 @@ async function removeBet(id){
 }
 
 /* ---------------- Settle match ---------------- */
+/* ---------------- Fetch final score from NPB (Yahoo Sports) ---------------- */
+async function fetchNpbScoreForCurrentMatch(m){
+  const btn = document.getElementById('npbFetchScoreBtn');
+  btn.disabled = true; btn.textContent = '取得中…';
+  try {
+    const data = await fetchNpbDay(m.npb_date);
+    const game = (data.games || []).find(g =>
+      (g.homeTeam === m.npb_team_fav && g.awayTeam === m.npb_team_dog) ||
+      (g.homeTeam === m.npb_team_dog && g.awayTeam === m.npb_team_fav)
+    );
+    if (!game){
+      alert('該当する試合が見つかりませんでした。チーム名が一致しているか確認してください。');
+      return;
+    }
+    if (!game.finished){
+      alert(`まだ試合が終了していません（現在の状態: ${game.status || '不明'}）。終了後にもう一度お試しください。`);
+      return;
+    }
+    const favIsHome = game.homeTeam === m.npb_team_fav;
+    const favScore = favIsHome ? game.homeScore : game.awayScore;
+    const dogScore = favIsHome ? game.awayScore : game.homeScore;
+    document.getElementById('matchScoreFav').value = favScore;
+    document.getElementById('matchScoreDog').value = dogScore;
+  } catch(err){
+    showError('NPBスコアの取得に失敗しました: ' + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = `⚾ NPBから最終スコアを取得（${m.npb_team_fav} vs ${m.npb_team_dog}）`;
+  }
+}
+
 async function settleCurrentMatch(){
   const sFav = parseFloat(document.getElementById('matchScoreFav').value);
   const sDog = parseFloat(document.getElementById('matchScoreDog').value);
