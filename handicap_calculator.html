@@ -236,17 +236,23 @@
   .bet-row.push .b-tag, .bet-row.push .b-amount{ color:var(--push); }
 
   .add-bet-form{
-    display:grid; grid-template-columns: 1fr auto auto auto; gap:8px; margin-top:10px; align-items:center;
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:8px;
+    margin-top:10px;
   }
+  .add-bet-form .ab-name{ grid-column: 1 / span 2; }
+  .add-bet-form .ab-side{ grid-column: 1 / span 2; }
+  .add-bet-form .ab-amount{ grid-column: 1 / span 1; width:100%; min-width:0; font-size:16px; }
+  .add-bet-form .ab-add{ grid-column: 2 / span 1; width:100%; }
   .p-side-toggle{ display:flex; border-radius:6px; overflow:hidden; border:1px solid var(--line); }
   .p-side-btn{
     background:var(--panel); color:var(--text-dim); border:none; padding:10px 10px;
     font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;
     -webkit-tap-highlight-color:transparent; touch-action:manipulation; white-space:nowrap;
+    flex:1;
   }
   .p-side-btn.active{ background:var(--gold); color:#1a1508; }
-  .add-bet-form input[type=text]{ width:100%; }
-  .add-bet-form input[type=number]{ width:100px; }
 
   .summary-box{
     margin-top:14px; padding:16px; border-radius:10px;
@@ -364,14 +370,14 @@
         <option value="">登録済みの参加者から選ぶ…</option>
       </select>
       <div class="add-bet-form">
-        <input type="text" id="betName" placeholder="または新しい名前を入力" list="participantList" autocomplete="off">
+        <input type="text" id="betName" placeholder="または新しい名前を入力" list="participantList" autocomplete="off" class="ab-name">
         <datalist id="participantList"></datalist>
-        <div class="p-side-toggle" id="betSideToggle" data-side="fav">
+        <div class="p-side-toggle ab-side" id="betSideToggle" data-side="fav">
           <button type="button" class="p-side-btn active" data-side="fav">ハンデ側</button>
           <button type="button" class="p-side-btn" data-side="dog">相手側</button>
         </div>
-        <input type="number" id="betAmount" placeholder="賭け金" inputmode="numeric">
-        <button type="button" class="btn btn-small" id="addBetBtn">追加</button>
+        <input type="number" id="betAmount" placeholder="賭け金" inputmode="numeric" class="ab-amount">
+        <button type="button" class="btn btn-small ab-add" id="addBetBtn">追加</button>
       </div>
     </div>
   </div>
