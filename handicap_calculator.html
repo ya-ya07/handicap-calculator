@@ -185,22 +185,31 @@
   .match-item .m-house.lose{ color:var(--lose); }
   .empty-note{ font-size:12.5px; color:var(--text-dim); text-align:center; padding:14px; }
 
+  .psum-row-wrap{
+    border:1px solid var(--line); border-radius:8px;
+    margin-bottom:8px; background:var(--panel-2); overflow:hidden;
+  }
   .psum-row{
     display:flex; justify-content:space-between; align-items:center;
-    border:1px solid var(--line); border-radius:8px; padding:12px 14px;
-    margin-bottom:8px; background:var(--panel-2);
+    padding:12px 14px; cursor:pointer;
   }
   .psum-row .ps-name{ font-weight:700; font-size:14px; }
   .psum-row .ps-meta{ font-size:11px; color:var(--text-dim); margin-top:2px; }
   .psum-row .ps-amount{ font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; }
   .psum-row .ps-amount.win{ color:var(--win); }
   .psum-row .ps-amount.lose{ color:var(--lose); }
-  .psum-total{
+  .psum-detail{ display:none; border-top:1px solid var(--line); }
+  .psum-row-wrap.expanded .psum-detail{ display:block; }
+  .psum-detail-row{
     display:flex; justify-content:space-between; align-items:center;
-    padding:12px 14px; margin-top:4px; border-top:1px solid var(--line);
-    font-size:13px; color:var(--text-dim);
+    padding:10px 14px; border-top:1px solid var(--line);
   }
-  .psum-total .ps-amount{ font-weight:800; font-size:16px; color:var(--text); font-variant-numeric:tabular-nums; }
+  .psum-detail-row:first-child{ border-top:none; }
+  .psum-detail-row .pd-label{ font-size:12.5px; font-weight:600; }
+  .psum-detail-row .pd-meta{ font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .psum-detail-row .pd-amount{ font-weight:700; font-size:13.5px; font-variant-numeric:tabular-nums; }
+  .psum-detail-row .pd-amount.win{ color:var(--win); }
+  .psum-detail-row .pd-amount.lose{ color:var(--lose); }
 
   .npb-game-item{
     display:flex; justify-content:space-between; align-items:center;
@@ -769,12 +778,7 @@ async function loadMatches(){
       const dt = new Date(m.created_at);
       const dateStr = `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
       const statusLabel = m.settled ? '確定済み' : '未確定';
-      let rightHtml = `<span class="status-badge ${m.settled ? 'settled':'open'}">${statusLabel}</span>`;
-      if (m.settled && m.house_profit !== null){
-        const sign = m.house_profit > 0 ? '+' : (m.house_profit < 0 ? '' : '±');
-        const cls = m.house_profit > 0 ? 'win' : (m.house_profit < 0 ? 'lose' : '');
-        rightHtml = `<div class="m-house ${cls}">${sign}${Math.round(m.house_profit).toLocaleString()}円</div><div class="m-sub">${statusLabel}</div>`;
-      }
+      const rightHtml = `<span class="status-badge ${m.settled ? 'settled':'open'}">${statusLabel}</span>`;
       const actionsHtml = `
         <div class="m-actions">
           <button type="button" class="btn btn-outline btn-small m-edit-btn">編集</button>
@@ -1215,7 +1219,7 @@ async function aggregatePeriod(startStr, endStr, label){
     const matchById = {};
     matches.forEach(m => { matchById[m.id] = m; });
 
-    const totals = {}; // key: participant_id || ('name:'+name) -> { name, profit, count }
+    const totals = {}; // key: participant_id || ('name:'+name) -> { name, profit, count, matches: [] }
     (bets || []).forEach(b=>{
       const m = matchById[b.match_id];
       if (!m || m.score_fav === null || m.score_dog === null) return;
@@ -1226,11 +1230,23 @@ async function aggregatePeriod(startStr, endStr, label){
       const dogOutcome = favOutcome.t === 'push' ? {t:'push'} : {t: favOutcome.t==='win'?'lose':'win', p: favOutcome.p};
       const outcome = b.side === 'fav' ? favOutcome : dogOutcome;
       const profit = profitOf(outcome, b.amount, m.payout_rate);
+      const payout = b.amount + profit; // amount actually returned to the participant
 
       const key = b.participant_id || ('name:' + b.name);
-      if (!totals[key]) totals[key] = { name: b.name, profit: 0, count: 0 };
+      if (!totals[key]) totals[key] = { name: b.name, profit: 0, count: 0, matches: [] };
       totals[key].profit += profit;
       totals[key].count += 1;
+
+      const dt = new Date(m.settled_at || m.created_at);
+      const dateLabel = `${dt.getMonth()+1}/${dt.getDate()}`;
+      totals[key].matches.push({
+        label: m.name || `HC ${hcLabel(m.hc)}`,
+        date: dateLabel,
+        amount: b.amount,
+        payout: payout,
+        profit: profit,
+        outcomeType: outcome.t,
+      });
     });
 
     const rows = Object.values(totals).sort((a,b)=> b.profit - a.profit);
@@ -1240,28 +1256,39 @@ async function aggregatePeriod(startStr, endStr, label){
     }
 
     listEl.innerHTML = '';
-    let grandTotal = 0;
     rows.forEach(r=>{
-      grandTotal += r.profit;
       const sign = r.profit > 0 ? '+' : (r.profit < 0 ? '' : '±');
       const cls = r.profit > 0 ? 'win' : (r.profit < 0 ? 'lose' : '');
       const div = document.createElement('div');
-      div.className = 'psum-row';
+      div.className = 'psum-row-wrap';
+
+      const detailRows = r.matches.map(mm=>{
+        const mSign = mm.profit > 0 ? '+' : (mm.profit < 0 ? '' : '±');
+        const mCls = mm.profit > 0 ? 'win' : (mm.profit < 0 ? 'lose' : '');
+        return `
+          <div class="psum-detail-row">
+            <div>
+              <div class="pd-label">${mm.date} ${mm.label}</div>
+              <div class="pd-meta">賭金 ${Number(mm.amount).toLocaleString()}円 ／ 戻し ${Math.round(mm.payout).toLocaleString()}円</div>
+            </div>
+            <div class="pd-amount ${mCls}">${mSign}${Math.round(mm.profit).toLocaleString()}円</div>
+          </div>
+        `;
+      }).join('');
+
       div.innerHTML = `
-        <div>
-          <div class="ps-name">${r.name}</div>
-          <div class="ps-meta">${r.count}件</div>
+        <div class="psum-row">
+          <div>
+            <div class="ps-name">${r.name}</div>
+            <div class="ps-meta">${r.count}件（タップで内訳）</div>
+          </div>
+          <div class="ps-amount ${cls}">${sign}${Math.round(r.profit).toLocaleString()}円</div>
         </div>
-        <div class="ps-amount ${cls}">${sign}${Math.round(r.profit).toLocaleString()}円</div>
+        <div class="psum-detail">${detailRows}</div>
       `;
+      div.querySelector('.psum-row').addEventListener('click', ()=> div.classList.toggle('expanded'));
       listEl.appendChild(div);
     });
-
-    const totalDiv = document.createElement('div');
-    totalDiv.className = 'psum-total';
-    const gSign = grandTotal > 0 ? '+' : (grandTotal < 0 ? '' : '±');
-    totalDiv.innerHTML = `<span>参加者合計</span><span class="ps-amount">${gSign}${Math.round(grandTotal).toLocaleString()}円</span>`;
-    listEl.appendChild(totalDiv);
   } catch(err){
     listEl.innerHTML = `<div class="empty-note">集計に失敗しました: ${err.message||err}</div>`;
   }
