@@ -1207,14 +1207,14 @@ function renderBets(){
         const sign = profit > 0 ? '+' : (profit < 0 ? '' : '±');
         div.className = 'bet-row ' + outcome.t;
         div.innerHTML = `
-          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ 賭金 ${Number(b.amount).toLocaleString()}円 ／ 戻し ${Math.round(payout).toLocaleString()}円</div></div>
+          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ 賭金 ${Number(b.amount).toLocaleString()}ゼニー ／ 戻し ${Math.round(payout).toLocaleString()}ゼニー</div></div>
           <div class="b-tag">${tagText(outcome)}</div>
-          <div class="b-amount">${sign}${Math.round(profit).toLocaleString()}円</div>
+          <div class="b-amount">${sign}${Math.round(profit).toLocaleString()}ゼニー</div>
         `;
       } else {
         div.className = 'bet-row';
         div.innerHTML = `
-          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ 賭金 ${Number(b.amount).toLocaleString()}円</div></div>
+          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ 賭金 ${Number(b.amount).toLocaleString()}ゼニー</div></div>
           <div class="b-tag"></div>
           <button type="button" class="btn btn-outline btn-small" data-bet-id="${b.id}">削除</button>
         `;
@@ -1468,9 +1468,9 @@ async function aggregatePeriod(startStr, endStr, label){
           <div class="psum-detail-row">
             <div>
               <div class="pd-label">${mm.label}</div>
-              <div class="pd-meta">賭金 ${Number(mm.amount).toLocaleString()}円 ／ 戻し ${Math.round(mm.payout).toLocaleString()}円</div>
+              <div class="pd-meta">賭金 ${Number(mm.amount).toLocaleString()}ゼニー ／ 戻し ${Math.round(mm.payout).toLocaleString()}ゼニー</div>
             </div>
-            <div class="pd-amount ${mCls}">${mSign}${Math.round(mm.profit).toLocaleString()}円</div>
+            <div class="pd-amount ${mCls}">${mSign}${Math.round(mm.profit).toLocaleString()}ゼニー</div>
           </div>
         `;
       }).join('');
@@ -1481,7 +1481,7 @@ async function aggregatePeriod(startStr, endStr, label){
             <div class="ps-name">${r.name}</div>
             <div class="ps-meta">${r.count}件（タップで内訳）</div>
           </div>
-          <div class="ps-amount ${cls}">${sign}${Math.round(r.profit).toLocaleString()}円</div>
+          <div class="ps-amount ${cls}">${sign}${Math.round(r.profit).toLocaleString()}ゼニー</div>
         </div>
         <div class="psum-detail">${detailRows}</div>
       `;
