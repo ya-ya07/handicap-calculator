@@ -329,7 +329,11 @@
     <button type="button" class="btn btn-ghost" id="newMatchToggleBtn" style="margin-top:10px;">＋ 新しい試合を登録</button>
 
     <div id="newMatchForm" style="display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--line);">
-      <span class="label">⚾ NPBの試合から選ぶ（任意）</span>
+      <span class="label">⚾ 試合から選ぶ（任意）</span>
+      <div class="p-side-toggle" id="npbCompetitionToggle" data-competition="npb" style="margin-bottom:8px;">
+        <button type="button" class="p-side-btn active" data-competition="npb">プロ野球(NPB)</button>
+        <button type="button" class="p-side-btn" data-competition="hsb_summer">夏の甲子園</button>
+      </div>
       <div class="row" style="margin-bottom:8px;">
         <input type="date" id="npbDateInput" style="flex:1;">
         <button type="button" class="btn btn-outline btn-small" id="npbSearchBtn" style="width:auto; white-space:nowrap;">試合を検索</button>
@@ -485,8 +489,9 @@ const SUPABASE_URL = 'https://oohrsukaxbitphgxossl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vaHJzdWtheGJpdHBoZ3hvc3NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NzYwMzgsImV4cCI6MjEwMDQ1MjAzOH0.d9ubESZqLBqp4WuLSCKyhxw_ErKfWbM_IzIusD8Zi6A';
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-async function fetchNpbDay(dateStr){
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/npb-day?date=${dateStr}`, {
+async function fetchNpbDay(dateStr, competition){
+  const comp = competition || 'npb';
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/npb-day?date=${dateStr}&competition=${comp}`, {
     headers: {
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       apikey: SUPABASE_ANON_KEY,
@@ -500,8 +505,9 @@ async function fetchNpbDay(dateStr){
 // Returns the innings-1-through-9 line score for a specific game, ignoring
 // any extra-inning columns, per our house rule: settle on the 9th-inning
 // (bottom) total even if the game went to extra innings.
-async function fetchNpbLineScore(gameId){
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/npb-day?gameId=${gameId}`, {
+async function fetchNpbLineScore(gameId, competition){
+  const comp = competition || 'npb';
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/npb-day?gameId=${gameId}&competition=${comp}`, {
     headers: {
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       apikey: SUPABASE_ANON_KEY,
@@ -630,8 +636,20 @@ newMatchToggleBtn.addEventListener('click', ()=>{
   newMatchForm.style.display = newMatchForm.style.display === 'none' ? 'block' : 'none';
 });
 
-/* ---------------- NPB schedule picker ---------------- */
-let npbSelection = null; // { date, homeTeam, awayTeam, favTeam, dogTeam }
+/* ---------------- NPB / Koshien schedule picker ---------------- */
+let npbSelection = null; // { date, competition, homeTeam, awayTeam, favTeam, dogTeam }
+
+const npbCompetitionToggle = document.getElementById('npbCompetitionToggle');
+npbCompetitionToggle.querySelectorAll('.p-side-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    npbCompetitionToggle.dataset.competition = btn.dataset.competition;
+    npbCompetitionToggle.querySelectorAll('.p-side-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('npbGameList').innerHTML = '';
+    document.getElementById('npbSideChoice').style.display = 'none';
+    npbSelection = null;
+  });
+});
 
 const npbDateInput = document.getElementById('npbDateInput');
 {
@@ -645,12 +663,13 @@ const npbDateInput = document.getElementById('npbDateInput');
 document.getElementById('npbSearchBtn').addEventListener('click', async ()=>{
   const listEl = document.getElementById('npbGameList');
   const dateStr = npbDateInput.value;
+  const competition = npbCompetitionToggle.dataset.competition || 'npb';
   if (!dateStr){ alert('日付を選択してください。'); return; }
   listEl.innerHTML = '<div class="empty-note">読み込み中…</div>';
   document.getElementById('npbSideChoice').style.display = 'none';
   npbSelection = null;
   try {
-    const data = await fetchNpbDay(dateStr);
+    const data = await fetchNpbDay(dateStr, competition);
     if (!data.games || data.games.length === 0){
       listEl.innerHTML = '<div class="empty-note">この日の試合は見つかりませんでした。</div>';
       return;
@@ -671,7 +690,7 @@ document.getElementById('npbSearchBtn').addEventListener('click', async ()=>{
       div.addEventListener('click', ()=>{
         document.querySelectorAll('.npb-game-item').forEach(el=>el.classList.remove('selected'));
         div.classList.add('selected');
-        showSideChoice(dateStr, g);
+        showSideChoice(dateStr, competition, g);
       });
       listEl.appendChild(div);
     });
@@ -685,7 +704,7 @@ function formatNpbDateLabel(dateStr){
   return `${m}/${d}`;
 }
 
-function showSideChoice(dateStr, game){
+function showSideChoice(dateStr, competition, game){
   const box = document.getElementById('npbSideChoice');
   box.style.display = 'block';
   box.innerHTML = `
@@ -698,6 +717,7 @@ function showSideChoice(dateStr, game){
       const favIsHome = btn.dataset.side === 'home';
       npbSelection = {
         date: dateStr,
+        competition: competition,
         homeTeam: game.homeTeam,
         awayTeam: game.awayTeam,
         favTeam: favIsHome ? game.homeTeam : game.awayTeam,
@@ -745,6 +765,7 @@ document.getElementById('createMatchBtn').addEventListener('click', async ()=>{
       npb_date: npbSelection ? npbSelection.date : null,
       npb_team_fav: npbSelection ? npbSelection.favTeam : null,
       npb_team_dog: npbSelection ? npbSelection.dogTeam : null,
+      npb_competition: npbSelection ? npbSelection.competition : 'npb',
     }).select().single();
     if (error) throw error;
     newMatchForm.style.display = 'none';
@@ -1300,7 +1321,8 @@ async function fetchNpbScoreForCurrentMatch(m){
   const btn = document.getElementById('npbFetchScoreBtn');
   btn.disabled = true; btn.textContent = '取得中…';
   try {
-    const data = await fetchNpbDay(m.npb_date);
+    const competition = m.npb_competition || 'npb';
+    const data = await fetchNpbDay(m.npb_date, competition);
     const game = (data.games || []).find(g =>
       (g.homeTeam === m.npb_team_fav && g.awayTeam === m.npb_team_dog) ||
       (g.homeTeam === m.npb_team_dog && g.awayTeam === m.npb_team_fav)
@@ -1322,7 +1344,7 @@ async function fetchNpbScoreForCurrentMatch(m){
       showError('この試合の詳細ページIDを特定できませんでした。');
       return;
     }
-    const lineData = await fetchNpbLineScore(gameIdMatch[1]);
+    const lineData = await fetchNpbLineScore(gameIdMatch[1], competition);
     const favRow = (lineData.rows || []).find(r => r.team === m.npb_team_fav);
     const dogRow = (lineData.rows || []).find(r => r.team === m.npb_team_dog);
     if (!favRow || !dogRow){
