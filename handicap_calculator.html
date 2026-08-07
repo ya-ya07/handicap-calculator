@@ -185,6 +185,7 @@
   }
   .match-item:hover{ border-color:var(--gold-bright); }
   .match-item.selected{ border-color:var(--gold); background:rgba(184,147,74,0.10); }
+  .match-item.needs-hc{ border-color:var(--lose); background:rgba(217,117,111,0.07); }
   .match-item .m-hc{ font-weight:700; font-size:14px; }
   .match-item .m-sub{ font-size:11px; color:var(--text-dim); margin-top:2px; }
   .match-item .m-right{ text-align:right; }
@@ -462,6 +463,19 @@
 
       <span class="label">ハンデ (HC)</span>
       <input type="text" id="editHcInput" placeholder="例: 1.45 / 1半 / 2" style="margin-bottom:12px;">
+
+      <span class="label">チーム（任意・空欄なら非表示）</span>
+      <div class="row" style="margin-bottom:8px;">
+        <div class="col">
+          <span class="label" style="margin-bottom:6px;">ハンデ側チーム</span>
+          <input type="text" id="editTeamFav" placeholder="例: 巨人">
+        </div>
+        <div class="col">
+          <span class="label" style="margin-bottom:6px;">相手側チーム</span>
+          <input type="text" id="editTeamDog" placeholder="例: 阪神">
+        </div>
+      </div>
+      <button type="button" class="btn btn-outline btn-small" id="swapTeamsBtn" style="margin-bottom:12px;">⇄ 入れ替える</button>
 
       <div id="editScoreFields" style="display:none; margin-bottom:12px;">
         <span class="label">得点（確定済みの試合のみ修正できます）</span>
@@ -1088,14 +1102,22 @@ async function loadMatches(){
           <button type="button" class="btn btn-outline btn-small m-delete-btn">削除</button>
         </div>
       `;
-      const sideTag = (m.npb_team_fav && m.hc !== '0') ? `　🚩ハンデ:${m.npb_team_fav}` : '';
+      const hasRealHc = m.hc !== null && m.hc !== undefined && m.hc !== '' && m.hc !== '0';
+      const sideTag = (m.npb_team_fav && hasRealHc) ? `　🚩ハンデ:${m.npb_team_fav}` : '';
+      const hcDisplay = hcLabel(m.hc);
+      const hcHtml = (m.hc === null || m.hc === undefined || m.hc === '')
+        ? `<span style="color:var(--lose); font-weight:700;">⚠ HC 未登録</span>`
+        : `HC ${hcDisplay}`;
       div.innerHTML = `
         <div>
-          <div class="m-hc">${m.name ? m.name : 'HC ' + hcLabel(m.hc)}${m.settled ? `　${m.score_fav} - ${m.score_dog}` : ''}</div>
-          <div class="m-sub">${m.name ? 'HC ' + hcLabel(m.hc) + '　／　' : ''}${dateStr}${m.memo ? '／' + m.memo : ''}${sideTag}</div>
+          <div class="m-hc">${m.name ? m.name : hcHtml}${m.settled ? `　${m.score_fav} - ${m.score_dog}` : ''}</div>
+          <div class="m-sub">${m.name ? hcHtml + '　／　' : ''}${dateStr}${m.memo ? '／' + m.memo : ''}${sideTag}</div>
         </div>
         <div class="m-right">${rightHtml}${actionsHtml}</div>
       `;
+      if (m.hc === null || m.hc === undefined || m.hc === ''){
+        div.classList.add('needs-hc');
+      }
       div.addEventListener('click', ()=> selectMatch(m));
       div.querySelector('.m-edit-btn').addEventListener('click', async (ev)=>{
         ev.stopPropagation();
@@ -1168,7 +1190,7 @@ async function selectMatch(m){
   document.getElementById('matchInfo').innerHTML =
     (m.name ? `<div style="font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px;">${m.name}</div>` : '') +
     sideInfo +
-    `HC <b style="color:var(--text);">${hcLabel(m.hc)}</b> ／ 勝ち配当率 <b style="color:var(--text);">${m.payout_rate}%</b>${m.memo ? '　／　' + m.memo : ''}`;
+    `HC <b style="${(m.hc === null || m.hc === undefined || m.hc === '') ? 'color:var(--lose);' : 'color:var(--text);'}">${(m.hc === null || m.hc === undefined || m.hc === '') ? '⚠ 未登録' : hcLabel(m.hc)}</b> ／ 勝ち配当率 <b style="color:var(--text);">${m.payout_rate}%</b>${m.memo ? '　／　' + m.memo : ''}`;
 
   const scoreEntry = document.getElementById('scoreEntry');
   const favShort = m.npb_team_fav ? `ハンデ側(${m.npb_team_fav})` : 'ハンデ側';
@@ -1224,6 +1246,8 @@ document.getElementById('editMatchBtn').addEventListener('click', ()=>{
   document.getElementById('editHcInput').value = m.hc || '';
   document.getElementById('editMatchMemo').value = m.memo || '';
   document.getElementById('editMatchRate').value = m.payout_rate;
+  document.getElementById('editTeamFav').value = m.npb_team_fav || '';
+  document.getElementById('editTeamDog').value = m.npb_team_dog || '';
 
   const scoreFieldsBox = document.getElementById('editScoreFields');
   document.getElementById('editScoreFav').classList.remove('invalid');
@@ -1238,6 +1262,14 @@ document.getElementById('editMatchBtn').addEventListener('click', ()=>{
 
   document.getElementById('editMatchForm').style.display = 'block';
   document.getElementById('scoreEntry').style.display = 'none';
+});
+
+document.getElementById('swapTeamsBtn').addEventListener('click', ()=>{
+  const favEl = document.getElementById('editTeamFav');
+  const dogEl = document.getElementById('editTeamDog');
+  const tmp = favEl.value;
+  favEl.value = dogEl.value;
+  dogEl.value = tmp;
 });
 
 document.getElementById('cancelMatchEditBtn').addEventListener('click', ()=>{
@@ -1267,6 +1299,8 @@ document.getElementById('saveMatchEditBtn').addEventListener('click', async ()=>
   const memo = document.getElementById('editMatchMemo').value.trim() || null;
   const rate = parseFloat(document.getElementById('editMatchRate').value);
   const finalRate = isNaN(rate) ? currentMatch.payout_rate : rate;
+  const teamFav = document.getElementById('editTeamFav').value.trim() || null;
+  const teamDog = document.getElementById('editTeamDog').value.trim() || null;
 
   let scoreFav = currentMatch.score_fav;
   let scoreDog = currentMatch.score_dog;
@@ -1288,7 +1322,7 @@ document.getElementById('saveMatchEditBtn').addEventListener('click', async ()=>
   const btn = document.getElementById('saveMatchEditBtn');
   btn.disabled = true; btn.textContent = '保存中…';
   try {
-    const updates = { name, hc, memo, payout_rate: finalRate };
+    const updates = { name, hc, memo, payout_rate: finalRate, npb_team_fav: teamFav, npb_team_dog: teamDog };
 
     // If this match was already settled, recompute the settlement with the
     // (possibly changed) HC/rate/score against its existing bets, so
