@@ -342,6 +342,21 @@
       <div id="npbSideChoice" style="display:none; margin-bottom:14px;"></div>
       <div class="or-divider">または下を直接入力</div>
 
+      <span class="label">試合日（任意）</span>
+      <input type="date" id="manualMatchDate" style="margin-bottom:12px;">
+
+      <div class="row" style="margin-bottom:12px;">
+        <div class="col">
+          <span class="label" style="margin-bottom:6px;">ホームチーム（任意）</span>
+          <input type="text" id="manualHomeTeam" placeholder="例: 巨人">
+        </div>
+        <div class="col">
+          <span class="label" style="margin-bottom:6px;">アウェイチーム（任意）</span>
+          <input type="text" id="manualAwayTeam" placeholder="例: 阪神">
+        </div>
+      </div>
+      <div id="manualSideChoice" style="display:none; margin-bottom:14px;"></div>
+
       <span class="label">試合名</span>
       <input type="text" id="newMatchName" placeholder="例: 巨人 vs 阪神" style="margin-bottom:14px;">
 
@@ -705,6 +720,66 @@ function formatNpbDateLabel(dateStr){
   return `${m}/${d}`;
 }
 
+/* ---------------- Manual home/away/date -> auto match name ---------------- */
+function updateManualMatchName(){
+  const home = document.getElementById('manualHomeTeam').value.trim();
+  const away = document.getElementById('manualAwayTeam').value.trim();
+  const dateStr = document.getElementById('manualMatchDate').value;
+  if (!home && !away) return; // nothing to build a name from yet
+
+  let label = '';
+  if (dateStr) label += formatNpbDateLabel(dateStr) + ' ';
+  if (home && away) label += `${home} vs ${away}`;
+  else label += (home || away);
+
+  document.getElementById('newMatchName').value = label.trim();
+}
+
+function updateManualSideChoice(){
+  const home = document.getElementById('manualHomeTeam').value.trim();
+  const away = document.getElementById('manualAwayTeam').value.trim();
+  const box = document.getElementById('manualSideChoice');
+
+  if (!home || !away){
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+
+  box.style.display = 'block';
+  box.innerHTML = `
+    <span class="label">どちらを「ハンデ側」にしますか？</span>
+    <button type="button" class="npb-side-btn" data-side="home">${home}をハンデ側にする</button>
+    <button type="button" class="npb-side-btn" data-side="away">${away}をハンデ側にする</button>
+  `;
+  box.querySelectorAll('.npb-side-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const favIsHome = btn.dataset.side === 'home';
+      npbSelection = {
+        date: null,
+        competition: null,
+        homeTeam: home,
+        awayTeam: away,
+        favTeam: favIsHome ? home : away,
+        dogTeam: favIsHome ? away : home,
+      };
+      box.querySelectorAll('.npb-side-btn').forEach(b=>{
+        b.style.borderColor = 'var(--line)';
+        b.style.background = 'var(--panel-2)';
+      });
+      btn.style.borderColor = 'var(--gold)';
+      btn.style.background = 'rgba(184,147,74,0.14)';
+    });
+  });
+}
+
+['manualHomeTeam', 'manualAwayTeam', 'manualMatchDate'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', updateManualMatchName);
+});
+['manualHomeTeam', 'manualAwayTeam'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', updateManualSideChoice);
+});
+
 function showSideChoice(dateStr, competition, game){
   const box = document.getElementById('npbSideChoice');
   box.style.display = 'block';
@@ -772,6 +847,11 @@ document.getElementById('createMatchBtn').addEventListener('click', async ()=>{
     newMatchForm.style.display = 'none';
     document.getElementById('newMatchMemo').value = '';
     document.getElementById('newMatchName').value = '';
+    document.getElementById('manualHomeTeam').value = '';
+    document.getElementById('manualAwayTeam').value = '';
+    document.getElementById('manualMatchDate').value = '';
+    document.getElementById('manualSideChoice').style.display = 'none';
+    document.getElementById('manualSideChoice').innerHTML = '';
     document.getElementById('npbGameList').innerHTML = '';
     document.getElementById('npbSideChoice').style.display = 'none';
     npbSelection = null;
@@ -1058,8 +1138,12 @@ async function selectMatch(m){
     `HC <b style="color:var(--text);">${hcLabel(m.hc)}</b> ／ 勝ち配当率 <b style="color:var(--text);">${m.payout_rate}%</b>${m.memo ? '　／　' + m.memo : ''}`;
 
   const scoreEntry = document.getElementById('scoreEntry');
+  const favShort = m.npb_team_fav ? `ハンデ側(${m.npb_team_fav})` : 'ハンデ側';
+  const dogShort = m.npb_team_dog ? `相手側(${m.npb_team_dog})` : '相手側';
+  const favLabel = m.npb_team_fav ? `ハンデ側の得点（${m.npb_team_fav}）` : 'ハンデ側の得点';
+  const dogLabel = m.npb_team_dog ? `相手側の得点（${m.npb_team_dog}）` : '相手側の得点';
   if (m.settled){
-    scoreEntry.innerHTML = `<div style="font-size:14px; color:var(--text-dim);">確定済みの得点: <b style="color:var(--text); font-size:16px;">${m.score_fav} - ${m.score_dog}</b>（ハンデ側 - 相手側）</div>`;
+    scoreEntry.innerHTML = `<div style="font-size:14px; color:var(--text-dim);">確定済みの得点: <b style="color:var(--text); font-size:16px;">${m.score_fav} - ${m.score_dog}</b>（${favShort} - ${dogShort}）</div>`;
   } else {
     const npbBtnHtml = m.npb_date
       ? `<button type="button" class="btn btn-outline" id="npbFetchScoreBtn" style="margin-bottom:12px;">⚾ 9回終了時点のスコアを取得（${m.npb_team_fav} vs ${m.npb_team_dog}）</button>`
@@ -1068,11 +1152,11 @@ async function selectMatch(m){
       ${npbBtnHtml}
       <div class="row" style="margin-bottom:8px;">
         <div class="col">
-          <span class="label" style="margin-bottom:6px;">ハンデ側の得点</span>
+          <span class="label" style="margin-bottom:6px;">${favLabel}</span>
           <input type="number" id="matchScoreFav" placeholder="0" inputmode="numeric">
         </div>
         <div class="col">
-          <span class="label" style="margin-bottom:6px;">相手側の得点</span>
+          <span class="label" style="margin-bottom:6px;">${dogLabel}</span>
           <input type="number" id="matchScoreDog" placeholder="0" inputmode="numeric">
         </div>
       </div>
