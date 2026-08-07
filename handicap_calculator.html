@@ -841,7 +841,7 @@ document.getElementById('createMatchBtn').addEventListener('click', async ()=>{
       npb_date: npbSelection ? npbSelection.date : null,
       npb_team_fav: npbSelection ? npbSelection.favTeam : null,
       npb_team_dog: npbSelection ? npbSelection.dogTeam : null,
-      npb_competition: npbSelection ? npbSelection.competition : 'npb',
+      npb_competition: (npbSelection && npbSelection.competition) ? npbSelection.competition : 'npb',
     }).select().single();
     if (error) throw error;
     newMatchForm.style.display = 'none';
