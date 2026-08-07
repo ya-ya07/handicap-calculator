@@ -1630,7 +1630,8 @@ async function aggregatePeriod(startStr, endStr, label){
     const matchById = {};
     matches.forEach(m => { matchById[m.id] = m; });
 
-    const totals = {}; // key: participant_id || ('name:'+name) -> { name, profit, count, matches: [] }
+    const totals = {}; // key: participant_id || ('name:'+name) -> { name, profit, count, wagered, matches: [] }
+    let periodTotalWagered = 0;
     (bets || []).forEach(b=>{
       const m = matchById[b.match_id];
       if (!m || m.score_fav === null || m.score_dog === null) return;
@@ -1644,9 +1645,11 @@ async function aggregatePeriod(startStr, endStr, label){
       const payout = b.amount + profit; // amount actually returned to the participant
 
       const key = b.participant_id || ('name:' + b.name);
-      if (!totals[key]) totals[key] = { name: b.name, profit: 0, count: 0, matches: [] };
+      if (!totals[key]) totals[key] = { name: b.name, profit: 0, count: 0, wagered: 0, matches: [] };
       totals[key].profit += profit;
       totals[key].count += 1;
+      totals[key].wagered += b.amount;
+      periodTotalWagered += b.amount;
 
       const dt = matchEffectiveDate(m);
       const dateLabel = `${dt.getMonth()+1}/${dt.getDate()}`;
@@ -1665,6 +1668,8 @@ async function aggregatePeriod(startStr, endStr, label){
       listEl.innerHTML = '<div class="empty-note">この期間の参加者データはありません。</div>';
       return;
     }
+
+    labelEl.innerHTML = `${label}　／　この期間の賭金合計: <b style="color:var(--text);">${Math.round(periodTotalWagered).toLocaleString()}<span class="unit">ゼニー</span></b>`;
 
     listEl.innerHTML = '';
     rows.forEach(r=>{
@@ -1691,7 +1696,7 @@ async function aggregatePeriod(startStr, endStr, label){
         <div class="psum-row">
           <div>
             <div class="ps-name">${r.name}</div>
-            <div class="ps-meta">${r.count}件（タップで内訳）</div>
+            <div class="ps-meta">${r.count}件 ／ 賭金合計 ${Math.round(r.wagered).toLocaleString()}ゼニー（タップで内訳）</div>
           </div>
           <div class="ps-amount ${cls}">${sign}${Math.round(r.profit).toLocaleString()}<span class="unit">ゼニー</span></div>
         </div>
