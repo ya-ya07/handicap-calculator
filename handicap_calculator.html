@@ -463,6 +463,20 @@
       <span class="label">ハンデ (HC)</span>
       <input type="text" id="editHcInput" placeholder="例: 1.45 / 1半 / 2" style="margin-bottom:12px;">
 
+      <div id="editScoreFields" style="display:none; margin-bottom:12px;">
+        <span class="label">得点（確定済みの試合のみ修正できます）</span>
+        <div class="row">
+          <div class="col">
+            <span class="label" style="margin-bottom:6px;">ハンデ側の得点</span>
+            <input type="number" id="editScoreFav" inputmode="numeric">
+          </div>
+          <div class="col">
+            <span class="label" style="margin-bottom:6px;">相手側の得点</span>
+            <input type="number" id="editScoreDog" inputmode="numeric">
+          </div>
+        </div>
+      </div>
+
       <span class="label">メモ（任意）</span>
       <input type="text" id="editMatchMemo" style="margin-bottom:12px;">
 
@@ -1191,6 +1205,18 @@ document.getElementById('editMatchBtn').addEventListener('click', ()=>{
   document.getElementById('editHcInput').value = m.hc || '';
   document.getElementById('editMatchMemo').value = m.memo || '';
   document.getElementById('editMatchRate').value = m.payout_rate;
+
+  const scoreFieldsBox = document.getElementById('editScoreFields');
+  document.getElementById('editScoreFav').classList.remove('invalid');
+  document.getElementById('editScoreDog').classList.remove('invalid');
+  if (m.settled){
+    document.getElementById('editScoreFav').value = m.score_fav;
+    document.getElementById('editScoreDog').value = m.score_dog;
+    scoreFieldsBox.style.display = 'block';
+  } else {
+    scoreFieldsBox.style.display = 'none';
+  }
+
   document.getElementById('editMatchForm').style.display = 'block';
   document.getElementById('scoreEntry').style.display = 'none';
 });
@@ -1223,16 +1249,35 @@ document.getElementById('saveMatchEditBtn').addEventListener('click', async ()=>
   const rate = parseFloat(document.getElementById('editMatchRate').value);
   const finalRate = isNaN(rate) ? currentMatch.payout_rate : rate;
 
+  let scoreFav = currentMatch.score_fav;
+  let scoreDog = currentMatch.score_dog;
+  if (currentMatch.settled){
+    const favRaw = document.getElementById('editScoreFav').value;
+    const dogRaw = document.getElementById('editScoreDog').value;
+    const favVal = parseFloat(favRaw);
+    const dogVal = parseFloat(dogRaw);
+    if (favRaw.trim() === '' || dogRaw.trim() === '' || isNaN(favVal) || isNaN(dogVal)){
+      document.getElementById('editScoreFav').classList.add('invalid');
+      document.getElementById('editScoreDog').classList.add('invalid');
+      alert('得点を正しく入力してください。');
+      return;
+    }
+    scoreFav = favVal;
+    scoreDog = dogVal;
+  }
+
   const btn = document.getElementById('saveMatchEditBtn');
   btn.disabled = true; btn.textContent = '保存中…';
   try {
     const updates = { name, hc, memo, payout_rate: finalRate };
 
     // If this match was already settled, recompute the settlement with the
-    // (possibly changed) HC/rate against its stored score and existing bets,
-    // so total_profit/house_profit stay consistent with what's displayed.
-    if (currentMatch.settled && currentMatch.score_fav !== null && currentMatch.score_dog !== null){
-      const margin = currentMatch.score_fav - currentMatch.score_dog;
+    // (possibly changed) HC/rate/score against its existing bets, so
+    // total_profit/house_profit stay consistent with what's displayed.
+    if (currentMatch.settled && scoreFav !== null && scoreDog !== null){
+      updates.score_fav = scoreFav;
+      updates.score_dog = scoreDog;
+      const margin = scoreFav - scoreDog;
       const favOutcome = evaluateWithSpillover(parsed, margin);
       const dogOutcome = favOutcome.t === 'push' ? {t:'push'} : {t: favOutcome.t==='win'?'lose':'win', p: favOutcome.p};
       const betsRes = await sb.from('bets').select('*').eq('match_id', currentMatch.id);
