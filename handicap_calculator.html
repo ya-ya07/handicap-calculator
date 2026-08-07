@@ -765,10 +765,12 @@ function updateManualSideChoice(){
     <span class="label">どちらを「ハンデ側」にしますか？</span>
     <button type="button" class="npb-side-btn" data-side="home">${home}をハンデ側にする</button>
     <button type="button" class="npb-side-btn" data-side="away">${away}をハンデ側にする</button>
+    <button type="button" class="npb-side-btn" data-side="none">ハンデなし（HC 0で登録）</button>
   `;
   box.querySelectorAll('.npb-side-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      const favIsHome = btn.dataset.side === 'home';
+      const side = btn.dataset.side;
+      const favIsHome = side === 'home' || side === 'none';
       npbSelection = {
         date: null,
         competition: null,
@@ -777,6 +779,11 @@ function updateManualSideChoice(){
         favTeam: favIsHome ? home : away,
         dogTeam: favIsHome ? away : home,
       };
+      if (side === 'none'){
+        hcInput.value = '0';
+        hcSelect.value = '0';
+        hcInput.classList.remove('invalid');
+      }
       box.querySelectorAll('.npb-side-btn').forEach(b=>{
         b.style.borderColor = 'var(--line)';
         b.style.background = 'var(--panel-2)';
@@ -801,10 +808,12 @@ function showSideChoice(dateStr, competition, game){
     <span class="label">どちらを「ハンデ側」にしますか？</span>
     <button type="button" class="npb-side-btn" data-side="home">${game.homeTeam}（ホーム）をハンデ側にする</button>
     <button type="button" class="npb-side-btn" data-side="away">${game.awayTeam}（アウェイ）をハンデ側にする</button>
+    <button type="button" class="npb-side-btn" data-side="none">ハンデなし（HC 0で登録）</button>
   `;
   box.querySelectorAll('.npb-side-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      const favIsHome = btn.dataset.side === 'home';
+      const side = btn.dataset.side;
+      const favIsHome = side === 'home' || side === 'none';
       npbSelection = {
         date: dateStr,
         competition: competition,
@@ -815,6 +824,11 @@ function showSideChoice(dateStr, competition, game){
       };
       document.getElementById('newMatchName').value =
         `${formatNpbDateLabel(dateStr)} ${game.homeTeam} vs ${game.awayTeam}`;
+      if (side === 'none'){
+        hcInput.value = '0';
+        hcSelect.value = '0';
+        hcInput.classList.remove('invalid');
+      }
       box.querySelectorAll('.npb-side-btn').forEach(b=>{
         b.style.borderColor = 'var(--line)';
         b.style.background = 'var(--panel-2)';
