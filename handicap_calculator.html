@@ -1074,10 +1074,11 @@ async function loadMatches(){
           <button type="button" class="btn btn-outline btn-small m-delete-btn">削除</button>
         </div>
       `;
+      const sideTag = m.npb_team_fav ? `　🚩ハンデ:${m.npb_team_fav}` : '';
       div.innerHTML = `
         <div>
           <div class="m-hc">${m.name ? m.name : 'HC ' + hcLabel(m.hc)}${m.settled ? `　${m.score_fav} - ${m.score_dog}` : ''}</div>
-          <div class="m-sub">${m.name ? 'HC ' + hcLabel(m.hc) + '　／　' : ''}${dateStr}${m.memo ? '／' + m.memo : ''}</div>
+          <div class="m-sub">${m.name ? 'HC ' + hcLabel(m.hc) + '　／　' : ''}${dateStr}${m.memo ? '／' + m.memo : ''}${sideTag}</div>
         </div>
         <div class="m-right">${rightHtml}${actionsHtml}</div>
       `;
@@ -1147,8 +1148,12 @@ async function selectMatch(m){
   badge.textContent = m.settled ? '確定済み' : '未確定';
   badge.className = 'status-badge ' + (m.settled ? 'settled' : 'open');
 
+  const sideInfo = m.npb_team_fav
+    ? `<div style="margin-bottom:6px;">ハンデ側: <b style="color:var(--text);">${m.npb_team_fav}</b> ／ 相手側: <b style="color:var(--text);">${m.npb_team_dog}</b></div>`
+    : '';
   document.getElementById('matchInfo').innerHTML =
     (m.name ? `<div style="font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px;">${m.name}</div>` : '') +
+    sideInfo +
     `HC <b style="color:var(--text);">${hcLabel(m.hc)}</b> ／ 勝ち配当率 <b style="color:var(--text);">${m.payout_rate}%</b>${m.memo ? '　／　' + m.memo : ''}`;
 
   const scoreEntry = document.getElementById('scoreEntry');
