@@ -678,7 +678,8 @@ document.getElementById('npbSearchBtn').addEventListener('click', async ()=>{
     data.games.forEach(g=>{
       const div = document.createElement('div');
       div.className = 'npb-game-item';
-      const scoreText = (g.finished || g.inProgress) ? `${g.homeScore} - ${g.awayScore}` : (g.status || '');
+      const preGameLabel = g.startTime ? `試合前 ${g.startTime}〜` : '試合前';
+      const scoreText = (g.finished || g.inProgress) ? `${g.homeScore} - ${g.awayScore}` : preGameLabel;
       const statusLabel = g.finished ? '　試合終了' : (g.inProgress ? `　${g.status || '試合中'}` : '');
       div.innerHTML = `
         <div>
