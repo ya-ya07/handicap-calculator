@@ -1670,24 +1670,16 @@ async function aggregatePeriod(startStr, endStr, label){
     let periodTotalWagered = 0;
     (bets || []).forEach(b=>{
       const m = matchById[b.match_id];
-      if (!m) return;
-
-      let outcome, profit, payout;
-      if (m.cancelled){
-        outcome = { t: 'push' };
-        profit = 0;
-        payout = b.amount;
-      } else {
-        if (m.score_fav === null || m.score_dog === null) return;
-        const parsed = parseHC(m.hc);
-        if (!parsed) return;
-        const margin = m.score_fav - m.score_dog;
-        const favOutcome = evaluateWithSpillover(parsed, margin);
-        const dogOutcome = favOutcome.t === 'push' ? {t:'push'} : {t: favOutcome.t==='win'?'lose':'win', p: favOutcome.p};
-        outcome = b.side === 'fav' ? favOutcome : dogOutcome;
-        profit = profitOf(outcome, b.amount, m.payout_rate);
-        payout = b.amount + profit; // amount actually returned to the participant
-      }
+      if (!m || m.cancelled) return;
+      if (m.score_fav === null || m.score_dog === null) return;
+      const parsed = parseHC(m.hc);
+      if (!parsed) return;
+      const margin = m.score_fav - m.score_dog;
+      const favOutcome = evaluateWithSpillover(parsed, margin);
+      const dogOutcome = favOutcome.t === 'push' ? {t:'push'} : {t: favOutcome.t==='win'?'lose':'win', p: favOutcome.p};
+      const outcome = b.side === 'fav' ? favOutcome : dogOutcome;
+      const profit = profitOf(outcome, b.amount, m.payout_rate);
+      const payout = b.amount + profit; // amount actually returned to the participant
 
       const key = b.participant_id || ('name:' + b.name);
       if (!totals[key]) totals[key] = { name: b.name, profit: 0, count: 0, wagered: 0, matches: [] };
