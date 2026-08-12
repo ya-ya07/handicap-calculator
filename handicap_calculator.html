@@ -176,6 +176,7 @@
   }
   .status-badge.open{ background:rgba(217,178,99,0.18); color:var(--gold-bright); }
   .status-badge.settled{ background:rgba(127,174,122,0.15); color:var(--push); }
+  .status-badge.cancelled{ background:rgba(217,117,111,0.15); color:var(--lose); }
 
   /* Match list */
   .match-item{
@@ -1093,8 +1094,8 @@ async function loadMatches(){
       const dateStr = m.npb_date
         ? `${dt.getMonth()+1}/${dt.getDate()}`
         : `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
-      const statusLabel = m.settled ? '確定済み' : '未確定';
-      const rightHtml = `<span class="status-badge ${m.settled ? 'settled':'open'}">${statusLabel}</span>`;
+      const statusLabel = m.cancelled ? '試合中止' : (m.settled ? '確定済み' : '未確定');
+      const rightHtml = `<span class="status-badge ${m.cancelled ? 'cancelled' : (m.settled ? 'settled':'open')}">${statusLabel}</span>`;
       const actionsHtml = `
         <div class="m-actions">
           <button type="button" class="btn btn-outline btn-small m-edit-btn">編集</button>
@@ -1108,9 +1109,10 @@ async function loadMatches(){
       const hcHtml = (m.hc === null || m.hc === undefined || m.hc === '')
         ? `<span style="color:var(--lose); font-weight:700;">⚠ HC 未登録</span>`
         : `HC ${hcDisplay}`;
+      const scoreOrCancelled = m.cancelled ? '　中止(全額返金)' : (m.settled ? `　${m.score_fav} - ${m.score_dog}` : '');
       div.innerHTML = `
         <div>
-          <div class="m-hc">${m.name ? m.name : hcHtml}${m.settled ? `　${m.score_fav} - ${m.score_dog}` : ''}</div>
+          <div class="m-hc">${m.name ? m.name : hcHtml}${scoreOrCancelled}</div>
           <div class="m-sub">${m.name ? hcHtml + '　／　' : ''}${dateStr}${m.memo ? '／' + m.memo : ''}${sideTag}</div>
         </div>
         <div class="m-right">${rightHtml}${actionsHtml}</div>
@@ -1181,8 +1183,8 @@ async function selectMatch(m){
   document.getElementById('scoreEntry').style.display = '';
 
   const badge = document.getElementById('matchStatusBadge');
-  badge.textContent = m.settled ? '確定済み' : '未確定';
-  badge.className = 'status-badge ' + (m.settled ? 'settled' : 'open');
+  badge.textContent = m.cancelled ? '試合中止' : (m.settled ? '確定済み' : '未確定');
+  badge.className = 'status-badge ' + (m.cancelled ? 'cancelled' : (m.settled ? 'settled' : 'open'));
 
   const sideInfo = (m.npb_team_fav && m.hc !== '0')
     ? `<div style="margin-bottom:6px;">ハンデ側: <b style="color:var(--text);">${m.npb_team_fav}</b> ／ 相手側: <b style="color:var(--text);">${m.npb_team_dog}</b></div>`
@@ -1197,7 +1199,9 @@ async function selectMatch(m){
   const dogShort = m.npb_team_dog ? `相手側(${m.npb_team_dog})` : '相手側';
   const favLabel = m.npb_team_fav ? `ハンデ側の得点（${m.npb_team_fav}）` : 'ハンデ側の得点';
   const dogLabel = m.npb_team_dog ? `相手側の得点（${m.npb_team_dog}）` : '相手側の得点';
-  if (m.settled){
+  if (m.cancelled){
+    scoreEntry.innerHTML = `<div style="font-size:14px; color:var(--lose);">試合中止のため確定しました。参加者全員に賭け金が全額返金されます(収支±0)。</div>`;
+  } else if (m.settled){
     scoreEntry.innerHTML = `<div style="font-size:14px; color:var(--text-dim);">確定済みの得点: <b style="color:var(--text); font-size:16px;">${m.score_fav} - ${m.score_dog}</b>（${favShort} - ${dogShort}）</div>`;
   } else {
     const npbBtnHtml = m.npb_date
@@ -1402,7 +1406,7 @@ function renderBets(){
   } else {
     listEl.innerHTML = '';
     let parsed = null, favOutcome = null, dogOutcome = null;
-    if (m.settled){
+    if (m.settled && !m.cancelled){
       parsed = parseHC(m.hc);
       const margin = m.score_fav - m.score_dog;
       favOutcome = evaluateWithSpillover(parsed, margin);
@@ -1411,7 +1415,14 @@ function renderBets(){
     currentBets.forEach(b=>{
       const div = document.createElement('div');
       const sideLabel = b.side === 'fav' ? 'ハンデ側' : '相手側';
-      if (m.settled){
+      if (m.cancelled){
+        div.className = 'bet-row push';
+        div.innerHTML = `
+          <div><div class="b-name">${b.name}</div><div class="b-meta">${sideLabel} ／ 賭金 ${Number(b.amount).toLocaleString()}ゼニー ／ 戻し ${Number(b.amount).toLocaleString()}ゼニー</div></div>
+          <div class="b-tag">試合中止(全額返金)</div>
+          <div class="b-amount">±0<span class="unit">ゼニー</span></div>
+        `;
+      } else if (m.settled){
         const outcome = b.side === 'fav' ? favOutcome : dogOutcome;
         const profit = profitOf(outcome, b.amount, m.payout_rate);
         const payout = b.amount + profit;
@@ -1514,6 +1525,10 @@ async function fetchNpbScoreForCurrentMatch(m){
       alert('該当する試合が見つかりませんでした。チーム名が一致しているか確認してください。');
       return;
     }
+    if (game.cancelled){
+      await settleCancelledMatch(m);
+      return;
+    }
     if (!game.finished){
       alert(`まだ試合が終了していません（現在の状態: ${game.status || '不明'}）。終了後にもう一度お試しください。`);
       return;
@@ -1543,6 +1558,27 @@ async function fetchNpbScoreForCurrentMatch(m){
   } finally {
     btn.disabled = false;
     btn.textContent = `⚾ 9回終了時点のスコアを取得（${m.npb_team_fav} vs ${m.npb_team_dog}）`;
+  }
+}
+
+// A cancelled/rained-out game never happened, so every bet is simply pushed
+// (full refund, no win/loss) rather than evaluated against the HC.
+async function settleCancelledMatch(m){
+  try {
+    const { data, error } = await sb.from('matches').update({
+      settled: true,
+      cancelled: true,
+      score_fav: null,
+      score_dog: null,
+      settled_at: new Date().toISOString(),
+      total_profit: 0,
+      house_profit: 0,
+    }).eq('id', m.id).select().single();
+    if (error) throw error;
+    await loadMatches();
+    selectMatch(data);
+  } catch(err){
+    showError('中止試合の確定に失敗しました: ' + (err.message || err));
   }
 }
 
@@ -1634,15 +1670,24 @@ async function aggregatePeriod(startStr, endStr, label){
     let periodTotalWagered = 0;
     (bets || []).forEach(b=>{
       const m = matchById[b.match_id];
-      if (!m || m.score_fav === null || m.score_dog === null) return;
-      const parsed = parseHC(m.hc);
-      if (!parsed) return;
-      const margin = m.score_fav - m.score_dog;
-      const favOutcome = evaluateWithSpillover(parsed, margin);
-      const dogOutcome = favOutcome.t === 'push' ? {t:'push'} : {t: favOutcome.t==='win'?'lose':'win', p: favOutcome.p};
-      const outcome = b.side === 'fav' ? favOutcome : dogOutcome;
-      const profit = profitOf(outcome, b.amount, m.payout_rate);
-      const payout = b.amount + profit; // amount actually returned to the participant
+      if (!m) return;
+
+      let outcome, profit, payout;
+      if (m.cancelled){
+        outcome = { t: 'push' };
+        profit = 0;
+        payout = b.amount;
+      } else {
+        if (m.score_fav === null || m.score_dog === null) return;
+        const parsed = parseHC(m.hc);
+        if (!parsed) return;
+        const margin = m.score_fav - m.score_dog;
+        const favOutcome = evaluateWithSpillover(parsed, margin);
+        const dogOutcome = favOutcome.t === 'push' ? {t:'push'} : {t: favOutcome.t==='win'?'lose':'win', p: favOutcome.p};
+        outcome = b.side === 'fav' ? favOutcome : dogOutcome;
+        profit = profitOf(outcome, b.amount, m.payout_rate);
+        payout = b.amount + profit; // amount actually returned to the participant
+      }
 
       const key = b.participant_id || ('name:' + b.name);
       if (!totals[key]) totals[key] = { name: b.name, profit: 0, count: 0, wagered: 0, matches: [] };
