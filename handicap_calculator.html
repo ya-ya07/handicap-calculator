@@ -1274,6 +1274,17 @@ document.getElementById('swapTeamsBtn').addEventListener('click', ()=>{
   const tmp = favEl.value;
   favEl.value = dogEl.value;
   dogEl.value = tmp;
+
+  // Scores are recorded per literal team (ハンデ側の得点 = whichever team is
+  // currently labeled fav), so swapping the team labels must also swap the
+  // score values, or the two get mismatched.
+  const scoreFavEl = document.getElementById('editScoreFav');
+  const scoreDogEl = document.getElementById('editScoreDog');
+  if (scoreFavEl && scoreDogEl && document.getElementById('editScoreFields').style.display !== 'none'){
+    const tmpScore = scoreFavEl.value;
+    scoreFavEl.value = scoreDogEl.value;
+    scoreDogEl.value = tmpScore;
+  }
 });
 
 document.getElementById('cancelMatchEditBtn').addEventListener('click', ()=>{
