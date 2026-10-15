@@ -693,15 +693,31 @@ async function unsettleMatch(m){
 async function fetchResult(m){
   const comp = m.npb_competition || 'npb';
   const day = await getDay(m.npb_date, comp);
-  const g = (day.games || []).find(x =>
+  const cands = (day.games || []).filter(x =>
     (teamEq(x.homeTeam, m.npb_team_fav) && teamEq(x.awayTeam, m.npb_team_dog)) ||
     (teamEq(x.homeTeam, m.npb_team_dog) && teamEq(x.awayTeam, m.npb_team_fav)));
-  if (!g) return { status:'notfound' };
+  if (!cands.length) return { status:'notfound' };
+
+  // CS・日本シリーズは同じカードが連日続くので、試合ページに書かれた日付と
+  // 登録日が一致する試合だけを採用する(別の日の得点で確定しないため)
+  const want = parseYmd(m.npb_date);
+  let g = null, ls = null;
+  for (const c of cands){
+    const id = (c.gameUrl || '').match(/\/game\/(\d+)\//);
+    if (!id) continue;
+    let data = null;
+    try { data = await lineScore(id[1], comp); } catch(_){ /* 試合前はページが無いことがある */ }
+    const gd = data && data.gameDate;
+    if (gd ? (gd.month === want.getMonth()+1 && gd.day === want.getDate()) : cands.length === 1){ g = c; ls = data; break; }
+  }
+  if (!g){
+    // 日付が一致する試合ページがまだ無い = 試合前の可能性が高い
+    if (cands.some(c => !c.finished && !c.cancelled)) return { status:'pending', text:'試合前' };
+    return { status:'notfound' };
+  }
   if (g.cancelled) return { status:'cancelled' };
   if (!g.finished) return { status:'pending', text: g.inProgress ? g.status : (g.startTime ? `試合前 ${g.startTime}〜` : '試合前') };
-  const id = (g.gameUrl || '').match(/\/game\/(\d+)\//);
-  if (!id) return { status:'error', text:'試合IDを特定できません' };
-  const ls = await lineScore(id[1], comp);
+  if (!ls) return { status:'error', text:'得点表を取得できませんでした' };
   const favRow = (ls.rows || []).find(r => teamEq(r.team, m.npb_team_fav));
   const dogRow = (ls.rows || []).find(r => teamEq(r.team, m.npb_team_dog));
   if (!favRow || !dogRow) return { status:'error', text:'得点表のチーム名を照合できません' };
