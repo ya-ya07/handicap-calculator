@@ -505,6 +505,9 @@ function effDate(m){
   }
   const s = new Date(m.settled_at || m.created_at); s.setHours(0,0,0,0); return s;
 }
+// 結果取得に使う日付。NPB連携なしの「手動」試合でも、チーム名が入っていれば試合日で探す
+function fetchDate(m){ return m.npb_date || ymd(effDate(m)); }
+function canFetch(m){ return !!(m.npb_team_fav && m.npb_team_dog); }
 
 /* ============================================================
    ハンデ計算(独自ルール)
@@ -692,7 +695,7 @@ async function unsettleMatch(m){
 // Yahoo!スポーツから「9回終了時点」のスコアを取得
 async function fetchResult(m){
   const comp = m.npb_competition || 'npb';
-  const day = await getDay(m.npb_date, comp);
+  const day = await getDay(fetchDate(m), comp);
   const cands = (day.games || []).filter(x =>
     (teamEq(x.homeTeam, m.npb_team_fav) && teamEq(x.awayTeam, m.npb_team_dog)) ||
     (teamEq(x.homeTeam, m.npb_team_dog) && teamEq(x.awayTeam, m.npb_team_fav)));
@@ -700,7 +703,7 @@ async function fetchResult(m){
 
   // CS・日本シリーズは同じカードが連日続くので、試合ページに書かれた日付と
   // 登録日が一致する試合だけを採用する(別の日の得点で確定しないため)
-  const want = parseYmd(m.npb_date);
+  const want = parseYmd(fetchDate(m));
   let g = null, ls = null;
   for (const c of cands){
     const id = (c.gameUrl || '').match(/\/game\/(\d+)\//);
@@ -783,7 +786,7 @@ function renderMatchList(){
     let right;
     if (m.cancelled) right = '<span class="chip cancelled">中止</span>';
     else if (m.settled) right = `<div class="mscore num">${m.score_fav}<span class="sep">-</span>${m.score_dog}</div>${m.npb_team_fav ? `<div class="tiny">${esc(m.npb_team_fav)} - ${esc(m.npb_team_dog)}</div>` : ''}`;
-    else right = `<span class="chip open">未確定</span>${m.npb_date ? `<div class="qfetch"><button class="btn sm gold" data-qfetch="${m.id}">⚾ 結果取得</button></div>` : ''}`;
+    else right = `<span class="chip open">未確定</span>${canFetch(m) ? `<div class="qfetch"><button class="btn sm gold" data-qfetch="${m.id}">⚾ 結果取得</button></div>` : ''}`;
     html += `
       <div class="mrow ${state.selectedId === m.id ? 'sel' : ''} ${!hasHc(m) && !m.settled ? 'needs' : ''}" data-id="${m.id}">
         <div>
@@ -817,7 +820,7 @@ $('#weekAll').onclick = () => { state.showAll = !state.showAll; renderMatchList(
 
 $('#bulkFetchBtn').onclick = async () => {
   const today = todayStr();
-  const targets = state.matches.filter(m => !m.settled && m.npb_date && m.npb_date <= today);
+  const targets = state.matches.filter(m => !m.settled && canFetch(m) && fetchDate(m) <= today);
   if (!targets.length){ toast('結果取得できる未確定の試合はありません'); return; }
   const btn = $('#bulkFetchBtn'); btn.disabled = true;
   let done = 0, cancelled = 0, pending = 0, skipped = [];
@@ -879,7 +882,7 @@ function renderDetail(){
   } else {
     scoreHtml = `
       ${!hasHc(m) ? '<div class="banner warn" style="margin-bottom:14px">⚠ ハンデが未登録です。「編集」からハンデを登録してください(未登録のままでは確定できません)。</div>' : ''}
-      ${m.npb_date ? `<button class="btn gold" id="dFetch" style="width:100%; justify-content:center; margin-bottom:14px">⚾ 9回終了時点のスコアを取得して確定</button>` : ''}
+      ${canFetch(m) ? `<button class="btn gold" id="dFetch" style="width:100%; justify-content:center; margin-bottom:14px">⚾ 9回終了時点のスコアを取得して確定</button>` : ''}
       <div class="score-in">
         <label class="field"><span>${esc(sideName(m,'fav'))} の得点(ハンデ側)</span><input type="number" id="dScoreFav" inputmode="numeric" min="0"></label>
         <div class="vs">−</div>
