@@ -113,6 +113,15 @@
   .hcline{font-size:11.5px; color:var(--win); font-weight:700}
   .rule{background:var(--panel2); border:1px solid var(--line); border-radius:11px; padding:11px 14px; margin:-6px 0 18px; font-size:13px; line-height:1.7}
   .rule b{color:var(--muted); font-size:11px; letter-spacing:.04em; margin-right:8px}
+  .rule .rt{font-weight:700; font-size:12px; color:var(--muted); margin-bottom:4px}
+  .rule .rt .tiny{margin-left:8px; font-weight:500}
+  .rule .lrow{padding:6px 0; border-top:1px dashed var(--line); display:flex; flex-wrap:wrap; gap:4px 12px; align-items:baseline}
+  .rule .lrow b{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:1px 7px; margin:0; color:var(--text)}
+  .rule .lteam{font-weight:700; width:100%}
+  .rule .seg{white-space:nowrap}
+  .rule .seg .sl{color:var(--muted); margin-right:5px; font-size:12px}
+  .rule .seg .win,.rule .seg .lose{font-weight:700}
+  .rule .lose{color:var(--lose,#e5574b)}
   .hcb.none{background:var(--push-soft); color:var(--push)}
   .hcb.warn{background:var(--warn-soft); color:var(--warn)}
   .mpl{display:flex; flex-wrap:wrap; gap:6px; margin-top:7px}
@@ -487,7 +496,7 @@
       <div class="grid2" style="grid-template-columns:minmax(260px,1fr) 2.3fr; align-items:start">
         <label class="field"><span>LINEのハンデをそのまま貼り付け</span>
           <textarea id="lineText" placeholder="阪神<1.1>&#10;横浜&#10;&#10;ソフト<1.0>&#10;日ハム"></textarea>
-          <span class="tiny" style="font-weight:500">＜ ＞ が付いている方をハンデ側として読み取ります。略称(横浜・日ハム・ソフト等)は自動で正式名に変換し、その日の日程と照合します。</span>
+          <span class="tiny" style="font-weight:500">＜ ＞ が付いている方を出し側として読み取ります。略称(横浜・日ハム・ソフト等)は自動で正式名に変換し、その日の日程と照合します。</span>
         </label>
         <div class="field"><span>読み取り結果</span><div id="linePreview" class="card" style="margin:0; padding:10px 12px; min-height:180px"><div class="empty">貼り付けると自動で読み取ります</div></div></div>
       </div>
@@ -507,7 +516,7 @@
         <label class="field"><span>ホーム(先に書くチーム)</span><input type="text" id="sHome" placeholder="例: 阪神"></label>
         <label class="field"><span>アウェイ</span><input type="text" id="sAway" placeholder="例: DeNA"></label>
       </div>
-      <div class="field"><span>ハンデ側</span>
+      <div class="field"><span>出し側</span>
         <div class="seg" id="sSideSeg"><button data-s="home" class="on">ホーム側</button><button data-s="away">アウェイ側</button><button data-s="none">ハンデなし</button></div>
       </div>
       <div class="grid3">
@@ -538,14 +547,14 @@
         <label class="field"><span>ハンデ</span><input type="text" id="eHc" list="hcList" placeholder="空欄=未登録"></label>
       </div>
       <div class="grid2" style="grid-template-columns:1fr auto 1fr; align-items:end">
-        <label class="field"><span>ハンデ側チーム</span><input type="text" id="eFav"></label>
+        <label class="field"><span>出し側チーム</span><input type="text" id="eFav"></label>
         <button class="btn sm" id="eSwap" style="margin-bottom:4px" title="チームと得点を入れ替え">⇄</button>
-        <label class="field"><span>相手側チーム</span><input type="text" id="eDog"></label>
+        <label class="field"><span>受け側チーム</span><input type="text" id="eDog"></label>
       </div>
       <div class="grid2" id="eScoreRow" style="grid-template-columns:1fr auto 1fr; align-items:end">
-        <label class="field"><span>ハンデ側の得点</span><input type="number" id="eScoreFav"></label>
+        <label class="field"><span>出し側の得点</span><input type="number" id="eScoreFav"></label>
         <span class="dim" style="padding-bottom:10px">−</span>
-        <label class="field"><span>相手側の得点</span><input type="number" id="eScoreDog"></label>
+        <label class="field"><span>受け側の得点</span><input type="number" id="eScoreDog"></label>
       </div>
       <div class="grid2">
         <label class="field"><span>勝ち配当率(%)</span><input type="number" id="eRate" step="0.1"></label>
@@ -682,7 +691,7 @@ function evaluateWithSpillover(p, margin){
   if (!p.isHalf && p.n === 0 && p.r > 0 && margin === 1) return { t:'win', p: clean((1 - p.r) * 100) };
   return evaluate(p, margin);
 }
-// 勝敗ライン: ハンデ側が何点差から+になるか / 相手側が何点差以下で+になるか
+// 勝敗ライン: 出し側が何点差から+になるか / 受け側が何点差以下で+になるか
 function hcRule(p){
   if (!p) return null;
   const f = k => outcomes(p, k).fav, d = k => outcomes(p, k).dog;
@@ -697,7 +706,7 @@ function hcRule(p){
     if (o.t === 'push') favNotes.push(`${T-1 === 0 ? '同点' : (T-1) + '点差'}は引き分け`);
     else if (o.t === 'lose' && pc(o) < 100) favNotes.push(`${T-1 === 0 ? '同点' : (T-1) + '点差'}は${pc(o)}%負け`);
   }
-  // 相手側: ハンデ側の点差が小さい(または負け)ほど+。+になる最大の点差を探す
+  // 受け側: 出し側の点差が小さい(または負け)ほど+。+になる最大の点差を探す
   let X = null;
   for (let k = T; k >= 0; k--){ if (d(k).t === 'win'){ X = k; break; } }
   if (X === null) X = -1;      // 同点でも+にならない(負け越しのみ)
@@ -708,12 +717,44 @@ function hcRule(p){
 const favLine = r => r ? `${r.T}点差から+` : '';
 function hcRuleText(m){
   const p = parseHC(m.hc, matchComp(m)); const r = hcRule(p); if (!r) return null;
-  const fav = m.npb_team_fav || 'ハンデ側', dog = m.npb_team_dog || '相手側';
-  const dogTxt = r.X < 0 ? 'ハンデ側が負け越したときだけ+' : (r.X === 0 ? '同点か負け越しで+' : `${r.X}点差以下(負け越し含む)で+`);
+  const fav = m.npb_team_fav || '出し側', dog = m.npb_team_dog || '受け側';
+  const dogTxt = r.X < 0 ? '出し側が負け越したときだけ+' : (r.X === 0 ? '同点か負け越しで+' : `${r.X}点差以下(負け越し含む)で+`);
   return {
     fav: `${fav}: ${r.T}点差から+` + (r.favNotes.length ? `(${r.favNotes.join('・')})` : ''),
     dog: `${dog}: ${dogTxt}` + (r.dogNotes.length ? `(${r.dogNotes.join('・')})` : ''),
   };
+}
+
+// 賭ける側ごとの「何点差ならどうなるか」一覧(出し=ハンデを出す側 / 受け=ハンデを受ける側)
+function hcLadder(m){
+  const p = parseHC(m.hc, matchComp(m)); const r = hcRule(p); if (!r) return null;
+  const last = r.T + 1;
+  const ks = []; for (let k = -1; k <= last; k++) ks.push(k);
+  const build = side => {
+    const segs = [];
+    ks.forEach(k => {
+      const o = outcomes(p, k)[side];
+      const tag = tagText(o);
+      const g = segs[segs.length-1];
+      if (g && g.tag === tag) g.hi = k; else segs.push({ lo:k, hi:k, tag, t:o.t });
+    });
+    return segs.map(g => {
+      let lbl;
+      if (g.lo === -1) lbl = g.hi === -1 ? '負け越し' : (g.hi === 0 ? '同点か負け越し' : `${g.hi}点差以下(負け越し含む)`);
+      else if (g.hi === last && g.lo !== g.hi) lbl = `${g.lo}点差以上`;
+      else if (g.hi === last) lbl = `${g.lo}点差以上`;
+      else lbl = g.lo === g.hi ? (g.lo === 0 ? '同点' : `${g.lo}点差`) : `${g.lo}〜${g.hi}点差`;
+      return { lbl, tag:g.tag, t:g.t };
+    });
+  };
+  return { fav: build('fav').reverse(), dog: build('dog') };
+}
+function hcLadderHtml(m){
+  const L = hcLadder(m); if (!L) return '';
+  const cls = t => t === 'win' ? 'win' : (t === 'lose' ? 'lose' : 'muted');
+  const row = (role, team, segs) => `<div class="lrow"><b>${role}</b><span class="lteam">${esc(team)}に賭ける</span>` +
+    segs.map(g => `<span class="seg"><span class="sl">${esc(g.lbl)}</span><span class="${cls(g.t)}">${esc(g.tag)}</span></span>`).join('') + `</div>`;
+  return row('出し', m.npb_team_fav || '出し側', L.fav) + row('受け', m.npb_team_dog || '受け側', L.dog);
 }
 function outcomes(p, margin){
   const fav = evaluateWithSpillover(p, margin);
@@ -1104,8 +1145,8 @@ async function selectMatch(id){
   renderDetail();
 }
 function sideName(m, side){
-  if (side === 'fav') return m.npb_team_fav || 'ハンデ側';
-  return m.npb_team_dog || '相手側';
+  if (side === 'fav') return m.npb_team_fav || '出し側';
+  return m.npb_team_dog || '受け側';
 }
 function renderDetail(){
   const pane = $('#detailPane');
@@ -1123,9 +1164,9 @@ function renderDetail(){
   } else if (m.settled){
     scoreHtml = `
       <div class="bigscore">
-        <div class="t l">${esc(sideName(m,'fav'))}<div class="tiny">ハンデ側</div></div>
+        <div class="t l">${esc(sideName(m,'fav'))}<div class="tiny">出し側</div></div>
         <div class="s num">${m.score_fav}<span class="sep">-</span>${m.score_dog}</div>
-        <div class="t r">${esc(sideName(m,'dog'))}<div class="tiny">相手側</div></div>
+        <div class="t r">${esc(sideName(m,'dog'))}<div class="tiny">受け側</div></div>
       </div>
       <div class="tiny" style="text-align:center">${endLabel(matchComp(m))}のスコアで確定 ・ 間違いは「編集」から修正できます</div>`;
   } else {
@@ -1133,9 +1174,9 @@ function renderDetail(){
       ${!hasHc(m) ? '<div class="banner warn" style="margin-bottom:14px">⚠ ハンデが未登録です。「編集」からハンデを登録してください(未登録のままでは確定できません)。</div>' : ''}
       ${canFetch(m) ? `<button class="btn gold" id="dFetch" style="width:100%; justify-content:center; margin-bottom:14px">${matchComp(m) === 'nba' ? '🏀' : '⚾'} ${endLabel(matchComp(m))}のスコアを取得して確定</button>` : ''}
       <div class="score-in">
-        <label class="field"><span>${esc(sideName(m,'fav'))} の得点(ハンデ側)</span><input type="number" id="dScoreFav" inputmode="numeric" min="0"></label>
+        <label class="field"><span>${esc(sideName(m,'fav'))} の得点(出し側)</span><input type="number" id="dScoreFav" inputmode="numeric" min="0"></label>
         <div class="vs">−</div>
-        <label class="field"><span>${esc(sideName(m,'dog'))} の得点(相手側)</span><input type="number" id="dScoreDog" inputmode="numeric" min="0"></label>
+        <label class="field"><span>${esc(sideName(m,'dog'))} の得点(受け側)</span><input type="number" id="dScoreDog" inputmode="numeric" min="0"></label>
       </div>
       <div class="row gap8" style="margin-top:12px">
         <span class="tiny">両方入力すると自動で確定・精算します(${matchComp(m) === 'nba' ? '延長も含めて試合終了時点で' : '延長は含めず9回終了時点で'})</span>
@@ -1208,12 +1249,12 @@ function renderDetail(){
         <button class="btn sm danger" id="dDelete">削除</button>
       </div>
       <div class="info-grid">
-        <div class="info"><div class="k">ハンデ側</div><div class="v">${m.npb_team_fav && !isZeroHc(m) ? esc(m.npb_team_fav) : '<span class="dim">—</span>'}</div></div>
+        <div class="info"><div class="k">出し側</div><div class="v">${m.npb_team_fav && !isZeroHc(m) ? esc(m.npb_team_fav) : '<span class="dim">—</span>'}</div></div>
         <div class="info"><div class="k">ハンデ</div><div class="v ${hasHc(m) ? '' : ''}" style="${hasHc(m) ? 'color:var(--gold2)' : 'color:var(--warn)'}">${hasHc(m) ? (isZeroHc(m) ? 'なし (0)' : esc(hcText(m))) : '未登録'}</div></div>
         <div class="info"><div class="k">勝ち配当率</div><div class="v num">${Number(m.payout_rate)}%</div></div>
         <div class="info"><div class="k">メモ</div><div class="v" style="font-size:13px">${m.memo ? esc(m.memo) : '<span class="dim">—</span>'}</div></div>
       </div>
-      ${(() => { const t = hasHc(m) && !isZeroHc(m) ? hcRuleText(m) : null; return t ? `<div class="rule"><div><b>勝敗ライン</b><span class="win" style="font-weight:700">${esc(t.fav)}</span></div><div><b></b><span class="muted">${esc(t.dog)}</span></div></div>` : ''; })()}
+      ${(() => { const h = hasHc(m) && !isZeroHc(m) ? hcLadderHtml(m) : ''; return h ? `<div class="rule"><div class="rt">勝敗ライン<span class="tiny">(出し側の点差で判定)</span></div>${h}</div>` : ''; })()}
       <div class="card"><div class="card-h"><h3>スコア</h3></div>${scoreHtml}</div>
       <div class="card"><div class="card-h"><h3>参加者</h3></div>${betsHtml}${addHtml}</div>
     </div>`;
@@ -1468,14 +1509,14 @@ function renderLinePreview(){
     ${lineGames && lineGames.games === null ? '<div class="tiny" style="margin-bottom:8px">日程を照合中…</div>' : ''}
     ${lineGames && lineGames.error ? `<div class="tiny" style="color:var(--warn); margin-bottom:8px">日程を取得できませんでした(${esc(lineGames.error)})。手動試合として登録されます。</div>` : ''}
     <table class="t stack preview">
-      <thead><tr><th></th><th>ハンデ側</th><th style="text-align:center">ハンデ</th><th>相手側</th><th></th><th>日程照合</th><th>状態</th></tr></thead>
+      <thead><tr><th></th><th>出し側</th><th style="text-align:center">ハンデ</th><th>受け側</th><th></th><th>日程照合</th><th>状態</th></tr></thead>
       <tbody>${lineRows.map((r,i) => `
         <tr>
           <td data-l="登録する"><input type="checkbox" data-i="${i}" data-k="include" ${r.include && ['new','update'].includes(r.action) ? 'checked' : ''} ${['new','update'].includes(r.action) ? '' : 'disabled'}></td>
-          <td data-l="ハンデ側"><input type="text" data-i="${i}" data-k="fav" value="${esc(r.favFinal)}"></td>
+          <td data-l="出し側"><input type="text" data-i="${i}" data-k="fav" value="${esc(r.favFinal)}"></td>
           <td data-l="ハンデ"><input type="text" class="hc ${r.hcBad ? 'invalid' : ''}" data-i="${i}" data-k="hc" value="${esc(r.hc)}" placeholder="未登録">${r.p && hcRule(r.p) ? `<div class="tiny" style="text-align:center; color:var(--win); margin-top:3px">${favLine(hcRule(r.p))}</div>` : ''}</td>
-          <td data-l="相手側"><input type="text" data-i="${i}" data-k="dog" value="${esc(r.dogFinal)}"></td>
-          <td data-l=""><button class="btn sm ghost" data-swap="${i}" title="ハンデ側を入れ替え">⇄</button></td>
+          <td data-l="受け側"><input type="text" data-i="${i}" data-k="dog" value="${esc(r.dogFinal)}"></td>
+          <td data-l=""><button class="btn sm ghost" data-swap="${i}" title="出し側を入れ替え">⇄</button></td>
           <td data-l="日程照合" class="tiny sched">${r.game ? `<span class="win">✓</span> ${esc(r.game.homeTeam)} vs ${esc(r.game.awayTeam)}${r.game.venue ? ' · ' + esc(r.game.venue) : ''}` : (lineGames && lineGames.games === null ? '…' : '<span class="dim">日程なし(手動)</span>')}</td>
           <td data-l="状態"><span class="st ${ST[r.action][1]}">${ST[r.action][0]}</span></td>
         </tr>`).join('')}</tbody>
