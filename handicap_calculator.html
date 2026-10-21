@@ -109,6 +109,9 @@
   .mtitle{font-weight:800; font-size:14.5px}
   .msub{display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; align-items:center; font-size:12px; color:var(--muted)}
   .hcb{display:inline-flex; align-items:center; gap:5px; background:var(--gold-soft); color:var(--gold2); border-radius:6px; padding:1px 8px; font-weight:700; font-size:11.5px}
+  .hcline{font-size:11.5px; color:var(--win); font-weight:700}
+  .rule{background:var(--panel2); border:1px solid var(--line); border-radius:11px; padding:11px 14px; margin:-6px 0 18px; font-size:13px; line-height:1.7}
+  .rule b{color:var(--muted); font-size:11px; letter-spacing:.04em; margin-right:8px}
   .hcb.none{background:var(--push-soft); color:var(--push)}
   .hcb.warn{background:var(--warn-soft); color:var(--warn)}
   .mpl{display:flex; flex-wrap:wrap; gap:6px; margin-top:7px}
@@ -355,7 +358,7 @@
       <div class="grid3">
         <label class="field"><span>試合日</span><input type="date" id="lineDate"></label>
         <label class="field"><span>大会</span>
-          <div class="seg compSeg" data-target="lineComp"><button data-c="npb" class="on">プロ野球</button><button data-c="hsb_summer">夏の甲子園</button></div>
+          <div class="seg compSeg" data-target="lineComp"><button data-c="npb" class="on">プロ野球</button><button data-c="hsb_summer">夏の甲子園</button><button data-c="nba">NBA</button></div>
         </label>
         <label class="field"><span>勝ち配当率(%)</span><input type="number" id="lineRate" value="90" step="0.1"></label>
       </div>
@@ -373,7 +376,7 @@
       <div class="grid3">
         <label class="field"><span>試合日</span><input type="date" id="sDate"></label>
         <label class="field"><span>大会</span>
-          <div class="seg compSeg" data-target="sComp"><button data-c="npb" class="on">プロ野球</button><button data-c="hsb_summer">夏の甲子園</button></div>
+          <div class="seg compSeg" data-target="sComp"><button data-c="npb" class="on">プロ野球</button><button data-c="hsb_summer">夏の甲子園</button><button data-c="nba">NBA</button></div>
         </label>
         <div class="field"><span>&nbsp;</span><button class="btn" id="sSearchBtn">この日の試合を検索</button></div>
       </div>
@@ -519,7 +522,7 @@ function canFetch(m){ return !!(m.npb_team_fav && m.npb_team_dog); }
    境界の1列だけ分計算、それ以外は丸勝ち/丸負け。
    ============================================================ */
 function clean(x){ return Math.round(x * 1e6) / 1e6; }
-function parseHC(raw){
+function parseHC(raw, comp){
   if (raw === null || raw === undefined) return null;
   let s = String(raw).trim()
     .replace(/[０-９．]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
@@ -529,7 +532,11 @@ function parseHC(raw){
   let m = s.match(/^(\d+)(?:\.0+)?半(\d+)?$/);
   if (m){ const n = +m[1]; const r = m[2] ? clean(parseFloat('0.'+m[2])) : 0; if (r >= 1) return null; return { n, r, isHalf:true }; }
   m = s.match(/^(\d+)(?:\.(\d+))?$/);
-  if (m){ const n = +m[1]; const r = m[2] ? clean(parseFloat('0.'+m[2])) : 0; return { n, r, isHalf:false }; }
+  if (m){
+    const n = +m[1]; const r = m[2] ? clean(parseFloat('0.'+m[2])) : 0;
+    // NBAも野球と同じ表で計算する(「5.5」は5点差で5分負け、「5半」は5.5点)
+    return { n, r, isHalf:false };
+  }
   return null;
 }
 function canonicalHC(p){
@@ -537,6 +544,9 @@ function canonicalHC(p){
   const digits = String(p.r).split('.')[1] || '0';
   return p.isHalf ? `${p.n}半${digits}` : `${p.n}.${digits}`;
 }
+// この試合がNBAか(大会の設定、またはチーム名から判断)
+const matchComp = m => (m.npb_competition === 'nba' || (typeof NBA_NAMES !== 'undefined' && NBA_NAMES.has(m.npb_team_fav))) ? 'nba' : (m.npb_competition || 'npb');
+const hcText = m => { const p = parseHC(m.hc, matchComp(m)); return p ? canonicalHC(p) : (m.hc ?? ''); };
 const hasHc = m => m.hc !== null && m.hc !== undefined && m.hc !== '';
 const isZeroHc = m => m.hc === '0';
 function evaluate(p, margin){
@@ -549,6 +559,39 @@ function evaluate(p, margin){
 function evaluateWithSpillover(p, margin){
   if (!p.isHalf && p.n === 0 && p.r > 0 && margin === 1) return { t:'win', p: clean((1 - p.r) * 100) };
   return evaluate(p, margin);
+}
+// 勝敗ライン: ハンデ側が何点差から+になるか / 相手側が何点差以下で+になるか
+function hcRule(p){
+  if (!p) return null;
+  const f = k => outcomes(p, k).fav, d = k => outcomes(p, k).dog;
+  const pc = o => Number((o.p ?? 100).toFixed(2));
+  let T = null;
+  for (let k = 0; k <= 60; k++){ if (f(k).t === 'win'){ T = k; break; } }
+  if (T === null) return null;
+  const favNotes = [];
+  if (pc(f(T)) < 100) favNotes.push(`${T}点差は${pc(f(T))}%勝ち`);
+  if (T >= 1){
+    const o = f(T-1);
+    if (o.t === 'push') favNotes.push(`${T-1 === 0 ? '同点' : (T-1) + '点差'}は引き分け`);
+    else if (o.t === 'lose' && pc(o) < 100) favNotes.push(`${T-1 === 0 ? '同点' : (T-1) + '点差'}は${pc(o)}%負け`);
+  }
+  // 相手側: ハンデ側の点差が小さい(または負け)ほど+。+になる最大の点差を探す
+  let X = null;
+  for (let k = T; k >= 0; k--){ if (d(k).t === 'win'){ X = k; break; } }
+  if (X === null) X = -1;      // 同点でも+にならない(負け越しのみ)
+  const dogNotes = [];
+  if (X >= 0 && pc(d(X)) < 100) dogNotes.push(`${X === 0 ? '同点' : X + '点差'}は${pc(d(X))}%勝ち`);
+  return { T, X, favNotes, dogNotes };
+}
+const favLine = r => r ? `${r.T}点差から+` : '';
+function hcRuleText(m){
+  const p = parseHC(m.hc, matchComp(m)); const r = hcRule(p); if (!r) return null;
+  const fav = m.npb_team_fav || 'ハンデ側', dog = m.npb_team_dog || '相手側';
+  const dogTxt = r.X < 0 ? 'ハンデ側が負け越したときだけ+' : (r.X === 0 ? '同点か負け越しで+' : `${r.X}点差以下(負け越し含む)で+`);
+  return {
+    fav: `${fav}: ${r.T}点差から+` + (r.favNotes.length ? `(${r.favNotes.join('・')})` : ''),
+    dog: `${dog}: ${dogTxt}` + (r.dogNotes.length ? `(${r.dogNotes.join('・')})` : ''),
+  };
 }
 function outcomes(p, margin){
   const fav = evaluateWithSpillover(p, margin);
@@ -571,7 +614,7 @@ function betResult(m, b){
   const amt = Number(b.amount);
   if (m.cancelled) return { label:'中止(返金)', t:'push', profit:0, payout:amt };
   if (!m.settled || m.score_fav === null || m.score_dog === null) return null;
-  const p = parseHC(m.hc); if (!p) return null;
+  const p = parseHC(m.hc, matchComp(m)); if (!p) return null;
   const { fav, dog } = outcomes(p, m.score_fav - m.score_dog);
   const o = b.side === 'fav' ? fav : dog;
   const profit = profitOf(o, amt, Number(m.payout_rate));
@@ -595,14 +638,55 @@ const TEAM_ALIASES = [
   ['オリックス',['オリックス','オリ','バファローズ']],
   ['ソフトバンク',['ソフトバンク','ソフト','sb','ホークス','鷹']],
 ];
+// NBA(表記は「ウォリアーズ」のようなニックネームに統一。LINEの略称・都市名・英語名も受け付ける)
+const NBA_ALIASES = [
+  ['ホークス',['atlanta','hawks','アトランタ','hawk']],
+  ['セルティックス',['セルティクス','セルティックス','ボストン','celtics','bos']],
+  ['ネッツ',['ブルックリン','nets','bkn']],
+  ['ホーネッツ',['シャーロット','hornets','cha']],
+  ['ブルズ',['シカゴ','bulls','chi']],
+  ['キャバリアーズ',['キャバリアーズ','キャブス','クリーブランド','cavaliers','cavs','cle']],
+  ['マーベリックス',['マーベリックス','マブス','ダラス','mavericks','mavs','dal']],
+  ['ナゲッツ',['デンバー','nuggets','den']],
+  ['ピストンズ',['デトロイト','pistons','det']],
+  ['ウォリアーズ',['ゴールデンステート','ウォリ','warriors','gsw','gs']],
+  ['ロケッツ',['ヒューストン','rockets','hou']],
+  ['ペイサーズ',['インディアナ','pacers','ind']],
+  ['クリッパーズ',['ロサンゼルスクリッパーズ','laクリッパーズ','clippers','lac']],
+  ['レイカーズ',['ロサンゼルスレイカーズ','laレイカーズ','lakers','lal']],
+  ['グリズリーズ',['メンフィス','grizzlies','mem']],
+  ['ヒート',['マイアミ','heat','mia']],
+  ['バックス',['ミルウォーキー','bucks','mil']],
+  ['ティンバーウルブズ',['ティンバーウルブズ','ウルブズ','ミネソタ','timberwolves','wolves','min']],
+  ['ペリカンズ',['ニューオーリンズ','pelicans','pels','nop']],
+  ['ニックス',['ニューヨーク','knicks','nyk']],
+  ['サンダー',['サンダー','オクラホマシティ','オクラホマ','thunder','okc']],
+  ['マジック',['オーランド','magic','orl']],
+  ['シクサーズ',['76ers','セブンティシクサーズ','フィラデルフィア','sixers','phi']],
+  ['サンズ',['フェニックス','suns','phx']],
+  ['トレイルブレイザーズ',['ブレイザーズ','ポートランド','blazers','trailblazers','por']],
+  ['キングス',['サクラメント','kings','sac']],
+  ['スパーズ',['サンアントニオ','spurs','sas']],
+  ['ラプターズ',['トロント','raptors','tor']],
+  ['ジャズ',['ユタ','jazz','uta']],
+  ['ウィザーズ',['ワシントン','wizards','was']],
+];
+const NBA_NAMES = new Set(NBA_ALIASES.map(x => x[0]));
 function normTeam(s, comp){
   const t = String(s || '').trim().replace(/[\s　]+/g,'');
-  if (comp !== 'npb') return t;
   const low = t.toLowerCase();
+  if (comp === 'nba'){
+    for (const [name, al] of NBA_ALIASES){ if (name === t || al.includes(low)) return name; }
+    return t;
+  }
+  if (comp !== 'npb') return t;
   for (const [name, al] of TEAM_ALIASES){ if (al.includes(low) || name.toLowerCase() === low) return name; }
   return t;
 }
-const teamEq = (a, b) => !!a && !!b && (a === b || a.includes(b) || b.includes(a));
+// NBAのチーム名同士は完全一致のみ(「ネッツ」と「ホーネッツ」の取り違え防止)。野球は部分一致も許容
+const teamEq = (a, b) => !!a && !!b && (a === b || ((!NBA_NAMES.has(a) || !NBA_NAMES.has(b)) && (a.includes(b) || b.includes(a))));
+const compLabel = c => c === 'hsb_summer' ? '夏の甲子園' : c === 'nba' ? 'NBA' : 'プロ野球';
+const endLabel = c => c === 'nba' ? '試合終了時点(延長含む)' : '9回終了時点';
 
 /* ============================================================
    Supabase / Edge Function
@@ -616,10 +700,13 @@ async function edge(params){
   return data;
 }
 const dayCache = {};
+// 同じ日の問い合わせは60秒だけ使い回す(試合中→終了の変化を拾えるように短くする)
 async function getDay(date, comp){
-  const key = comp + '|' + date;
-  if (!dayCache[key]) dayCache[key] = edge({ date, competition: comp }).catch(e => { delete dayCache[key]; throw e; });
-  return dayCache[key];
+  const key = comp + '|' + date, c = dayCache[key];
+  if (c && Date.now() - c.t < 60000) return c.p;
+  const p = edge({ date, competition: comp }).catch(e => { delete dayCache[key]; throw e; });
+  dayCache[key] = { t: Date.now(), p };
+  return p;
 }
 const lineScore = (gameId, comp) => edge({ gameId, competition: comp });
 
@@ -674,7 +761,7 @@ const getMatch = id => state.matches.find(m => m.id === id);
    確定・中止・取り消し
    ============================================================ */
 async function settleMatch(m, sFav, sDog){
-  const p = parseHC(m.hc);
+  const p = parseHC(m.hc, matchComp(m));
   if (!p) throw new Error('ハンデが未登録です。編集からハンデを登録してください');
   await ensureBets([m.id], true);
   const bets = state.bets[m.id] || [];
@@ -710,6 +797,17 @@ async function unsettleMatch(m){
 async function fetchResult(m){
   const comp = m.npb_competition || 'npb';
   const day = await getDay(fetchDate(m), comp);
+  if (comp === 'nba'){
+    // NBAは日程データに試合終了時点の得点(延長含む)が入っている
+    const g = (day.games || []).find(x =>
+      (teamEq(x.homeTeam, m.npb_team_fav) && teamEq(x.awayTeam, m.npb_team_dog)) ||
+      (teamEq(x.homeTeam, m.npb_team_dog) && teamEq(x.awayTeam, m.npb_team_fav)));
+    if (!g) return { status:'notfound' };
+    if (g.cancelled) return { status:'cancelled' };
+    if (!g.finished) return { status:'pending', text: g.inProgress ? g.status : (g.startTime ? `試合前 ${g.startTime}〜` : (g.status || '試合前')) };
+    const favHome = teamEq(g.homeTeam, m.npb_team_fav);
+    return { status:'ok', fav: favHome ? g.homeScore : g.awayScore, dog: favHome ? g.awayScore : g.homeScore };
+  }
   const cands = (day.games || []).filter(x =>
     (teamEq(x.homeTeam, m.npb_team_fav) && teamEq(x.awayTeam, m.npb_team_dog)) ||
     (teamEq(x.homeTeam, m.npb_team_dog) && teamEq(x.awayTeam, m.npb_team_fav)));
@@ -742,7 +840,7 @@ async function fetchResult(m){
 }
 async function fetchAndSettle(m){
   const r = await fetchResult(m);
-  if (r.status === 'ok') { await settleMatch(m, r.fav, r.dog); return { ok:true, msg:`${r.fav} - ${r.dog} で確定しました(9回終了時点)` }; }
+  if (r.status === 'ok') { await settleMatch(m, r.fav, r.dog); return { ok:true, msg:`${r.fav} - ${r.dog} で確定しました(${endLabel(m.npb_competition)})` }; }
   if (r.status === 'cancelled') { await cancelMatch(m); return { ok:true, msg:'試合中止のため全額返金で確定しました' }; }
   if (r.status === 'pending') return { ok:false, msg:`まだ試合が終わっていません(${r.text})` };
   if (r.status === 'notfound') return { ok:false, msg:'その日の日程に該当する試合が見つかりません' };
@@ -769,7 +867,8 @@ function displayTitle(m){
 function hcBadge(m){
   if (!hasHc(m)) return '<span class="hcb warn">⚠ ハンデ未登録</span>';
   if (isZeroHc(m)) return '<span class="hcb none">ハンデなし</span>';
-  return `<span class="hcb">${m.npb_team_fav ? esc(m.npb_team_fav) + ' ' : 'HC '}${esc(m.hc)}</span>`;
+  const rr = hcRule(parseHC(m.hc, matchComp(m)));
+  return `<span class="hcb">${m.npb_team_fav ? esc(m.npb_team_fav) + ' ' : 'HC '}${esc(hcText(m))}</span>${rr ? `<span class="hcline">${favLine(rr)}</span>` : ''}`;
 }
 function renderWeekHead(){
   const s = state.weekStart, e = addDays(s, 6);
@@ -889,7 +988,7 @@ function renderDetail(){
   const bets = visibleBets(m.id);
   const d = effDate(m);
   const status = m.cancelled ? '<span class="chip cancelled">試合中止</span>' : m.settled ? '<span class="chip settled">確定済み</span>' : '<span class="chip open">未確定</span>';
-  const comp = m.npb_date ? `<span class="chip comp">${m.npb_competition === 'hsb_summer' ? '夏の甲子園' : 'プロ野球'} 連携</span>` : '<span class="chip comp">手動</span>';
+  const comp = m.npb_date ? `<span class="chip comp">${compLabel(m.npb_competition)} 連携</span>` : '<span class="chip comp">手動</span>';
 
   // スコア欄
   let scoreHtml;
@@ -902,18 +1001,18 @@ function renderDetail(){
         <div class="s num">${m.score_fav}<span class="sep">-</span>${m.score_dog}</div>
         <div class="t r">${esc(sideName(m,'dog'))}<div class="tiny">相手側</div></div>
       </div>
-      <div class="tiny" style="text-align:center">9回終了時点のスコアで確定 ・ 間違いは「編集」から修正できます</div>`;
+      <div class="tiny" style="text-align:center">${endLabel(m.npb_competition)}のスコアで確定 ・ 間違いは「編集」から修正できます</div>`;
   } else {
     scoreHtml = `
       ${!hasHc(m) ? '<div class="banner warn" style="margin-bottom:14px">⚠ ハンデが未登録です。「編集」からハンデを登録してください(未登録のままでは確定できません)。</div>' : ''}
-      ${canFetch(m) ? `<button class="btn gold" id="dFetch" style="width:100%; justify-content:center; margin-bottom:14px">⚾ 9回終了時点のスコアを取得して確定</button>` : ''}
+      ${canFetch(m) ? `<button class="btn gold" id="dFetch" style="width:100%; justify-content:center; margin-bottom:14px">${m.npb_competition === 'nba' ? '🏀' : '⚾'} ${endLabel(m.npb_competition)}のスコアを取得して確定</button>` : ''}
       <div class="score-in">
         <label class="field"><span>${esc(sideName(m,'fav'))} の得点(ハンデ側)</span><input type="number" id="dScoreFav" inputmode="numeric" min="0"></label>
         <div class="vs">−</div>
         <label class="field"><span>${esc(sideName(m,'dog'))} の得点(相手側)</span><input type="number" id="dScoreDog" inputmode="numeric" min="0"></label>
       </div>
       <div class="row gap8" style="margin-top:12px">
-        <span class="tiny">両方入力すると自動で確定・精算します(延長は含めず9回終了時点で)</span>
+        <span class="tiny">両方入力すると自動で確定・精算します(${m.npb_competition === 'nba' ? '延長も含めて試合終了時点で' : '延長は含めず9回終了時点で'})</span>
         <div class="spacer"></div>
         <button class="btn sm danger" id="dCancel">試合中止にする</button>
       </div>`;
@@ -983,10 +1082,11 @@ function renderDetail(){
       </div>
       <div class="info-grid">
         <div class="info"><div class="k">ハンデ側</div><div class="v">${m.npb_team_fav && !isZeroHc(m) ? esc(m.npb_team_fav) : '<span class="dim">—</span>'}</div></div>
-        <div class="info"><div class="k">ハンデ</div><div class="v ${hasHc(m) ? '' : ''}" style="${hasHc(m) ? 'color:var(--gold2)' : 'color:var(--warn)'}">${hasHc(m) ? (isZeroHc(m) ? 'なし (0)' : esc(m.hc)) : '未登録'}</div></div>
+        <div class="info"><div class="k">ハンデ</div><div class="v ${hasHc(m) ? '' : ''}" style="${hasHc(m) ? 'color:var(--gold2)' : 'color:var(--warn)'}">${hasHc(m) ? (isZeroHc(m) ? 'なし (0)' : esc(hcText(m))) : '未登録'}</div></div>
         <div class="info"><div class="k">勝ち配当率</div><div class="v num">${Number(m.payout_rate)}%</div></div>
         <div class="info"><div class="k">メモ</div><div class="v" style="font-size:13px">${m.memo ? esc(m.memo) : '<span class="dim">—</span>'}</div></div>
       </div>
+      ${(() => { const t = hasHc(m) && !isZeroHc(m) ? hcRuleText(m) : null; return t ? `<div class="rule"><div><b>勝敗ライン</b><span class="win" style="font-weight:700">${esc(t.fav)}</span></div><div><b></b><span class="muted">${esc(t.dog)}</span></div></div>` : ''; })()}
       <div class="card"><div class="card-h"><h3>スコア</h3></div>${scoreHtml}</div>
       <div class="card"><div class="card-h"><h3>参加者</h3></div>${betsHtml}${addHtml}</div>
     </div>`;
@@ -1104,7 +1204,7 @@ $('#eSave').onclick = async () => {
   const m = editing;
   const hcRaw = $('#eHc').value.trim();
   let p = null, hc = null;
-  if (hcRaw){ p = parseHC(hcRaw); if (!p){ $('#eHc').classList.add('invalid'); toast('ハンデの表記が正しくありません(例: 1.1 / 1半3 / 2)', 'err'); return; } hc = canonicalHC(p); }
+  if (hcRaw){ p = parseHC(hcRaw, matchComp(m)); if (!p){ $('#eHc').classList.add('invalid'); toast('ハンデの表記が正しくありません(例: 1.1 / 1半3 / 2)', 'err'); return; } hc = canonicalHC(p); }
   const scored = m.settled && !m.cancelled;
   if (scored && !p){ $('#eHc').classList.add('invalid'); toast('確定済みの試合はハンデを空にできません', 'err'); return; }
   const date = $('#eDate').value || null;
@@ -1195,7 +1295,7 @@ function findExisting(date, a, b){
 function computeLineRow(r, date, comp, games){
   r.favN = normTeam(r.fav, comp); r.dogN = normTeam(r.dog, comp);
   const raw = String(r.hc || '').trim();
-  r.p = raw ? parseHC(raw) : null;
+  r.p = raw ? parseHC(raw, comp) : null;
   r.hcBad = !!raw && !r.p;
   r.hcCanon = r.p ? canonicalHC(r.p) : null;
   r.game = (games || []).find(g =>
@@ -1219,12 +1319,14 @@ async function refreshLinePreview(refetch=false){
   // 既存の行の編集内容(チェック)を可能な限り保持
   lineRows = parsed.map((p, i) => ({ include: lineRows[i] ? lineRows[i].include : true, ...p }));
   if (refetch || lineGames === null || lineGames.key !== comp + date){
-    lineGames = { key: comp + date, games: null, error: null };
-    if (date && lineRows.length){
-      renderLinePreview();
-      try { lineGames.games = (await getDay(date, comp)).games || []; }
-      catch(e){ lineGames.error = errMsg(e); lineGames.games = []; }
-    }
+    lineGames = { key: comp + date, games: null, error: null, loading: false };
+  }
+  // 貼り付け前に大会・日付だけ変えた場合も、行が入った時点で日程を取りに行く
+  if (lineGames.games === null && !lineGames.loading && date && lineRows.length){
+    const lg = lineGames; lg.loading = true;
+    renderLinePreview();
+    try { lg.games = (await getDay(date, comp)).games || []; }
+    catch(e){ lg.error = errMsg(e); lg.games = []; }
   }
   renderLinePreview();
 }
@@ -1243,7 +1345,7 @@ function renderLinePreview(){
         <tr>
           <td><input type="checkbox" data-i="${i}" data-k="include" ${r.include && ['new','update'].includes(r.action) ? 'checked' : ''} ${['new','update'].includes(r.action) ? '' : 'disabled'}></td>
           <td><input type="text" data-i="${i}" data-k="fav" value="${esc(r.favFinal)}"></td>
-          <td><input type="text" class="hc ${r.hcBad ? 'invalid' : ''}" data-i="${i}" data-k="hc" value="${esc(r.hc)}" placeholder="未登録"></td>
+          <td><input type="text" class="hc ${r.hcBad ? 'invalid' : ''}" data-i="${i}" data-k="hc" value="${esc(r.hc)}" placeholder="未登録">${r.p && hcRule(r.p) ? `<div class="tiny" style="text-align:center; color:var(--win); margin-top:3px">${favLine(hcRule(r.p))}</div>` : ''}</td>
           <td><input type="text" data-i="${i}" data-k="dog" value="${esc(r.dogFinal)}"></td>
           <td><button class="btn sm ghost" data-swap="${i}" title="ハンデ側を入れ替え">⇄</button></td>
           <td class="tiny sched">${r.game ? `<span class="win">✓</span> ${esc(r.game.homeTeam)} vs ${esc(r.game.awayTeam)}${r.game.venue ? ' · ' + esc(r.game.venue) : ''}` : (lineGames && lineGames.games === null ? '…' : '<span class="dim">日程なし(手動)</span>')}</td>
@@ -1349,7 +1451,7 @@ async function submitSingle(){
   const side = $('#sSideSeg button.on').dataset.s;
   const hcRaw = side === 'none' ? '0' : $('#sHc').value.trim();
   let hc = null;
-  if (hcRaw){ const p = parseHC(hcRaw); if (!p){ $('#sHc').classList.add('invalid'); toast('ハンデの表記が正しくありません', 'err'); return; } hc = canonicalHC(p); }
+  if (hcRaw){ const p = parseHC(hcRaw, comp); if (!p){ $('#sHc').classList.add('invalid'); toast('ハンデの表記が正しくありません', 'err'); return; } hc = canonicalHC(p); }
   const name = $('#sName').value.trim() || (home || away ? `${date ? md(parseYmd(date)) + ' ' : ''}${home} vs ${away}` : '');
   if (!name){ toast('チーム名か試合名を入力してください', 'err'); return; }
   const fav = side === 'away' ? away : home, dog = side === 'away' ? home : away;
