@@ -884,13 +884,15 @@ const getMatch = id => state.matches.find(m => m.id === id);
    ============================================================ */
 async function settleMatch(m, sFav, sDog){
   const p = parseHC(m.hc, matchComp(m));
-  if (!p) throw new Error('ハンデが未登録です。編集からハンデを登録してください');
   await ensureBets([m.id], true);
   const bets = state.bets[m.id] || [];
-  if (!bets.length) throw new Error('参加者がいません。先に参加者を追加してください');
-  const { fav, dog } = outcomes(p, sFav - sDog);
+  // 賭けている人がいなくても結果(スコア)は確定できる。ハンデ未登録でも、賭けがなければ確定OK
+  if (!p && bets.length) throw new Error('ハンデが未登録です。編集からハンデを登録してください');
   let total = 0;
-  bets.forEach(b => total += profitOf(b.side === 'fav' ? fav : dog, Number(b.amount), Number(m.payout_rate)));
+  if (p){
+    const { fav, dog } = outcomes(p, sFav - sDog);
+    bets.forEach(b => total += profitOf(b.side === 'fav' ? fav : dog, Number(b.amount), Number(m.payout_rate)));
+  }
   const { data, error } = await sb.from('matches').update({
     score_fav: sFav, score_dog: sDog, settled: true, cancelled: false,
     settled_at: new Date().toISOString(), total_profit: Math.round(total), house_profit: Math.round(-total),
@@ -1650,13 +1652,14 @@ async function runSummary(start, end, label, sub){
     const d = ymd(effDate(m)); return (!start || d >= start) && (!end || d <= end);
   });
   try { await ensureBets(ms.map(m => m.id)); } catch(err){ handleDbError(err, '集計に失敗'); return; }
-  const people = {}; let wager = 0, payout = 0; const hid = hiddenNames();
+  const people = {}; let wager = 0, payout = 0; const hid = hiddenNames(); const usedMatches = new Set();
   for (const m of ms){
     for (const b of (state.bets[m.id] || [])){
       if (hid.has(b.name)) continue;
       const r = betResult(m, b); if (!r) continue;
       const key = b.participant_id || 'n:' + b.name;
       const P = people[key] ||= { name: b.name, n:0, w:0, l:0, d:0, stake:0, payout:0, profit:0, rows:[] };
+      usedMatches.add(m.id);
       P.n++; P.stake += Number(b.amount); P.payout += r.payout; P.profit += r.profit;
       if (r.profit > 0) P.w++; else if (r.profit < 0) P.l++; else P.d++;
       P.rows.push({ m, b, r });
@@ -1665,7 +1668,7 @@ async function runSummary(start, end, label, sub){
   }
   const list = Object.values(people).sort((a,b) => b.profit - a.profit);
   $('#kWager').innerHTML = zeny(wager); $('#kPayout').innerHTML = zeny(payout);
-  $('#kMatches').innerHTML = `${ms.length}<span class="u">試合</span>`; $('#kPeople').innerHTML = `${list.length}<span class="u">名</span>`;
+  $('#kMatches').innerHTML = `${usedMatches.size}<span class="u">試合</span>`; $('#kPeople').innerHTML = `${list.length}<span class="u">名</span>`;
   if (!list.length){ body.innerHTML = '<tr><td colspan="6" class="empty">この期間に確定した試合はありません</td></tr>'; return; }
   body.innerHTML = list.map((P,i) => `
     <tr class="main" data-i="${i}">
