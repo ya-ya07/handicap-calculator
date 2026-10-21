@@ -1036,6 +1036,13 @@ function displayTitle(m){
   if (m.npb_team_fav && m.npb_team_dog) return `${m.npb_team_fav} vs ${m.npb_team_dog}`;
   return '無題の試合';
 }
+// 左に表示するのはホーム側。試合名「ホーム vs アウェイ」の並び順に合わせる(判別できなければ出し側が左)
+function favLeft(m){
+  const n = displayTitle(m), f = m.npb_team_fav, d = m.npb_team_dog;
+  if (!f || !d) return true;
+  const i = n.indexOf(f), j = n.indexOf(d);
+  return !(i >= 0 && j >= 0 && j < i);
+}
 function hcBadge(m){
   if (!hasHc(m)) return '<span class="hcb warn">⚠ ハンデ未登録</span>';
   if (isZeroHc(m)) return '<span class="hcb none">ハンデなし</span>';
@@ -1070,7 +1077,7 @@ function renderMatchList(){
     const stake = bets ? bets.reduce((s,b) => s + Number(b.amount), 0) : null;
     let right;
     if (m.cancelled) right = '<span class="chip cancelled">中止</span>';
-    else if (m.settled) right = `<div class="mscore num">${m.score_fav}<span class="sep">-</span>${m.score_dog}</div>${m.npb_team_fav ? `<div class="tiny">${esc(m.npb_team_fav)} - ${esc(m.npb_team_dog)}</div>` : ''}`;
+    else if (m.settled) right = `<div class="mscore num">${favLeft(m) ? m.score_fav : m.score_dog}<span class="sep">-</span>${favLeft(m) ? m.score_dog : m.score_fav}</div>${m.npb_team_fav ? `<div class="tiny">${favLeft(m) ? esc(m.npb_team_fav) + ' - ' + esc(m.npb_team_dog) : esc(m.npb_team_dog) + ' - ' + esc(m.npb_team_fav)}</div>` : ''}`;
     else right = `<span class="chip open">未確定</span>${canFetch(m) ? `<div class="qfetch"><button class="btn sm gold" data-qfetch="${m.id}">⚾ 結果取得</button></div>` : ''}`;
     // 確定済みなら参加者ごとの収支を一覧にも出す
     let plHtml = '';
@@ -1170,20 +1177,23 @@ function renderDetail(){
     scoreHtml = '<div class="banner cancel">試合中止のため確定しました。参加者全員に賭け金を全額返金(収支±0)。</div>';
   } else if (m.settled){
     scoreHtml = `
-      <div class="bigscore">
-        <div class="t l">${esc(sideName(m,'fav'))}<div class="tiny">出し側</div></div>
-        <div class="s num">${m.score_fav}<span class="sep">-</span>${m.score_dog}</div>
-        <div class="t r">${esc(sideName(m,'dog'))}<div class="tiny">受け側</div></div>
-      </div>
+      ${(() => {
+        const F = `<div class="t ${favLeft(m) ? 'l' : 'r'}">${esc(sideName(m,'fav'))}<div class="tiny">出し側</div></div>`;
+        const D = `<div class="t ${favLeft(m) ? 'r' : 'l'}">${esc(sideName(m,'dog'))}<div class="tiny">受け側</div></div>`;
+        const sc = `<div class="s num">${favLeft(m) ? m.score_fav : m.score_dog}<span class="sep">-</span>${favLeft(m) ? m.score_dog : m.score_fav}</div>`;
+        return `<div class="bigscore">${favLeft(m) ? F + sc + D : D + sc + F}</div>`;
+      })()}
       <div class="tiny" style="text-align:center">${endLabel(matchComp(m))}のスコアで確定 ・ 間違いは「編集」から修正できます</div>`;
   } else {
     scoreHtml = `
       ${!hasHc(m) ? '<div class="banner warn" style="margin-bottom:14px">⚠ ハンデが未登録です。「編集」からハンデを登録してください(未登録のままでは確定できません)。</div>' : ''}
       ${canFetch(m) ? `<button class="btn gold" id="dFetch" style="width:100%; justify-content:center; margin-bottom:14px">${matchComp(m) === 'nba' ? '🏀' : '⚾'} ${endLabel(matchComp(m))}のスコアを取得して確定</button>` : ''}
       <div class="score-in">
-        <label class="field"><span>${esc(sideName(m,'fav'))} の得点(出し側)</span><input type="number" id="dScoreFav" inputmode="numeric" min="0"></label>
-        <div class="vs">−</div>
-        <label class="field"><span>${esc(sideName(m,'dog'))} の得点(受け側)</span><input type="number" id="dScoreDog" inputmode="numeric" min="0"></label>
+        ${(() => {
+          const F = `<label class="field"><span>${esc(sideName(m,'fav'))} の得点(出し側)</span><input type="number" id="dScoreFav" inputmode="numeric" min="0"></label>`;
+          const D = `<label class="field"><span>${esc(sideName(m,'dog'))} の得点(受け側)</span><input type="number" id="dScoreDog" inputmode="numeric" min="0"></label>`;
+          return favLeft(m) ? F + '<div class="vs">−</div>' + D : D + '<div class="vs">−</div>' + F;
+        })()}
       </div>
       <div class="row gap8" style="margin-top:12px">
         <span class="tiny">両方入力すると自動で確定・精算します(${matchComp(m) === 'nba' ? '延長も含めて試合終了時点で' : '延長は含めず9回終了時点で'})</span>
@@ -1628,7 +1638,8 @@ async function submitSingle(){
   const hcRaw = side === 'none' ? '0' : $('#sHc').value.trim();
   let hc = null;
   if (hcRaw){ const p = parseHC(hcRaw, comp); if (!p){ $('#sHc').classList.add('invalid'); toast('ハンデの表記が正しくありません', 'err'); return; } hc = canonicalHC(p); }
-  const name = $('#sName').value.trim() || (home || away ? `${date ? md(parseYmd(date)) + ' ' : ''}${home} vs ${away}` : '');
+  let name = $('#sName').value.trim() || (home || away ? `${date ? md(parseYmd(date)) + ' ' : ''}${home} vs ${away}` : '');
+  const nameAuto = !$('#sName').value.trim() || sNameDirty === false;
   if (!name){ toast('チーム名か試合名を入力してください', 'err'); return; }
   const fav = side === 'away' ? away : home, dog = side === 'away' ? home : away;
   // 日程と照合できれば自動連携(結果取得が使えるようになる)
@@ -1636,7 +1647,12 @@ async function submitSingle(){
   if (date && home && away){
     try {
       const games = (await getDay(date, comp)).games || [];
-      if (games.some(g => (teamEq(g.homeTeam, home) && teamEq(g.awayTeam, away)) || (teamEq(g.homeTeam, away) && teamEq(g.awayTeam, home)))) npbDate = date;
+      const g = games.find(g => (teamEq(g.homeTeam, home) && teamEq(g.awayTeam, away)) || (teamEq(g.homeTeam, away) && teamEq(g.awayTeam, home)));
+      if (g){
+        npbDate = date;
+        // 日程と照合できたら、試合名を実際のホーム vs アウェイの順に自動で直す(出し/受けはそのまま)
+        if (nameAuto) name = `${md(parseYmd(date))} ${g.homeTeam} vs ${g.awayTeam}`;
+      }
     } catch(_){}
   }
   try {
