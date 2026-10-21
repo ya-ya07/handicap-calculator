@@ -489,7 +489,7 @@
       <div class="grid3">
         <label class="field"><span>試合日</span><input type="date" id="lineDate"></label>
         <label class="field"><span>大会</span>
-          <div class="seg compSeg" data-target="lineComp"><button data-c="npb" class="on">プロ野球</button><button data-c="hsb_summer">夏の甲子園</button><button data-c="nba">NBA</button></div>
+          <div class="seg compSeg" data-target="lineComp"><button data-c="auto" class="on">自動判別</button><button data-c="npb">プロ野球</button><button data-c="hsb_summer">夏の甲子園</button><button data-c="nba">NBA</button></div>
         </label>
         <label class="field"><span>勝ち配当率(%)</span><input type="number" id="lineRate" value="90" step="0.1"></label>
       </div>
@@ -507,7 +507,7 @@
       <div class="grid3">
         <label class="field"><span>試合日</span><input type="date" id="sDate"></label>
         <label class="field"><span>大会</span>
-          <div class="seg compSeg" data-target="sComp"><button data-c="npb" class="on">プロ野球</button><button data-c="hsb_summer">夏の甲子園</button><button data-c="nba">NBA</button></div>
+          <div class="seg compSeg" data-target="sComp"><button data-c="auto" class="on">自動判別</button><button data-c="npb">プロ野球</button><button data-c="hsb_summer">夏の甲子園</button><button data-c="nba">NBA</button></div>
         </label>
         <div class="field"><span>&nbsp;</span><button class="btn" id="sSearchBtn">この日の試合を検索</button></div>
       </div>
@@ -1473,6 +1473,23 @@ function parseLinePaste(text){
   return pairs;
 }
 let lineRows = [];
+// 大会が「自動判別」のときの候補
+const AUTO_COMPS = ['nba','npb'];
+const compsFor = comp => comp === 'auto' ? AUTO_COMPS : [comp];
+// チーム名と日程から大会を判別(日程に一致 → なければチーム名で推測)
+function detectComp(a, b, byComp){
+  for (const c of AUTO_COMPS){
+    const x = normTeam(a, c), y = normTeam(b, c);
+    if (x && y && ((byComp && byComp[c]) || []).some(g => (teamEq(g.homeTeam, x) && teamEq(g.awayTeam, y)) || (teamEq(g.homeTeam, y) && teamEq(g.awayTeam, x)))) return c;
+  }
+  if (typeof NBA_NAMES !== 'undefined' && (NBA_NAMES.has(normTeam(a,'nba')) || NBA_NAMES.has(normTeam(b,'nba')))) return 'nba';
+  return 'npb';
+}
+async function loadDays(date, comp){
+  const out = {}; let err = null, ok = 0;
+  await Promise.all(compsFor(comp).map(async c => { try { out[c] = (await getDay(date, c)).games || []; ok++; } catch(e){ out[c] = []; err = errMsg(e); } }));
+  return { byComp: out, error: ok ? null : err };
+}
 function findExisting(date, a, b){
   return state.matches.find(m => ymd(effDate(m)) === date && (
     (teamEq(m.npb_team_fav, a) && teamEq(m.npb_team_dog, b)) || (teamEq(m.npb_team_fav, b) && teamEq(m.npb_team_dog, a)) ||
@@ -1511,8 +1528,8 @@ async function refreshLinePreview(refetch=false){
   if (lineGames.games === null && !lineGames.loading && date && lineRows.length){
     const lg = lineGames; lg.loading = true;
     renderLinePreview();
-    try { lg.games = (await getDay(date, comp)).games || []; }
-    catch(e){ lg.error = errMsg(e); lg.games = []; }
+    const d = await loadDays(date, comp);
+    lg.games = d.byComp; lg.error = d.error;
   }
   renderLinePreview();
 }
@@ -1520,7 +1537,11 @@ function renderLinePreview(){
   const date = $('#lineDate').value, comp = compOf('lineComp');
   const box = $('#linePreview');
   if (!lineRows.length){ box.innerHTML = '<div class="empty">貼り付けると自動で読み取ります</div>'; updateAddFoot(); return; }
-  lineRows.forEach(r => computeLineRow(r, date, comp, lineGames && lineGames.games));
+  lineRows.forEach(r => {
+    const by = lineGames && lineGames.games;
+    r.comp = comp === 'auto' ? detectComp(r.fav, r.dog, by) : comp;
+    computeLineRow(r, date, r.comp, by ? by[r.comp] || [] : null);
+  });
   const ST = { new:['新規','new'], update:['ハンデ更新','upd'], same:['登録済み','skip'], locked:['確定済み','skip'], bad:['要修正','bad'] };
   box.innerHTML = `
     ${lineGames && lineGames.games === null ? '<div class="tiny" style="margin-bottom:8px">日程を照合中…</div>' : ''}
@@ -1568,7 +1589,7 @@ function updateAddFoot(){
 }
 
 /* ---------- 1試合ずつ ---------- */
-let sNameDirty = false;
+let sNameDirty = false, sPickComp = null;
 function sAutoName(){
   if (sNameDirty) return;
   const d = $('#sDate').value, h = $('#sHome').value.trim(), a = $('#sAway').value.trim();
@@ -1586,7 +1607,9 @@ $('#sSearchBtn').onclick = async () => {
   if (!date){ toast('日付を選んでください', 'err'); return; }
   box.innerHTML = '<div class="tiny">検索中…</div>';
   try {
-    const games = (await getDay(date, comp)).games || [];
+    const dd = await loadDays(date, comp);
+    if (dd.error) throw new Error(dd.error);
+    const games = compsFor(comp).flatMap(c => (dd.byComp[c] || []).map(g => ({ ...g, _c: c })));
     if (!games.length){ box.innerHTML = '<div class="tiny">この日の試合は見つかりませんでした</div>'; return; }
     box.innerHTML = `<div class="gamepick">${games.map((g,i) => `
       <button data-g="${i}"><div class="gt">${esc(g.homeTeam)} vs ${esc(g.awayTeam)}</div>
@@ -1594,7 +1617,7 @@ $('#sSearchBtn').onclick = async () => {
     $$('[data-g]', box).forEach(b => b.onclick = () => {
       const g = games[+b.dataset.g];
       $$('[data-g]', box).forEach(x => x.classList.toggle('on', x === b));
-      $('#sHome').value = g.homeTeam; $('#sAway').value = g.awayTeam; sAutoName();
+      $('#sHome').value = g.homeTeam; $('#sAway').value = g.awayTeam; sPickComp = g._c; sAutoName();
       $('#sHc').focus();
     });
   } catch(e){ box.innerHTML = `<div class="tiny" style="color:var(--lose)">取得失敗: ${esc(errMsg(e))}</div>`; }
@@ -1615,7 +1638,7 @@ async function submitLine(){
   const inserts = sel.filter(r => r.action === 'new').map(r => ({
     name: `${md(parseYmd(date))} ${r.game ? `${r.game.homeTeam} vs ${r.game.awayTeam}` : `${r.favFinal} vs ${r.dogFinal}`}`,
     hc: r.hcCanon, memo: null, payout_rate: rate, settled: false, match_date: date,
-    npb_date: r.game ? date : null, npb_team_fav: r.favFinal, npb_team_dog: r.dogFinal, npb_competition: comp,
+    npb_date: r.game ? date : null, npb_team_fav: r.favFinal, npb_team_dog: r.dogFinal, npb_competition: r.comp || comp,
   }));
   try {
     if (inserts.length){ const { error } = await sb.from('matches').insert(inserts); if (error) throw error; }
@@ -1632,7 +1655,14 @@ async function submitLine(){
   } catch(err){ handleDbError(err, '登録に失敗'); }
 }
 async function submitSingle(){
-  const date = $('#sDate').value || null, comp = compOf('sComp');
+  const date = $('#sDate').value || null;
+  let comp = compOf('sComp');
+  let byComp = null;
+  if (comp === 'auto'){
+    if (date){ try { byComp = (await loadDays(date, 'auto')).byComp; } catch(_){} }
+    comp = detectComp($('#sHome').value, $('#sAway').value, byComp);
+    if (sPickComp && !byComp) comp = sPickComp;
+  }
   const home = normTeam($('#sHome').value, comp), away = normTeam($('#sAway').value, comp);
   const side = $('#sSideSeg button.on').dataset.s;
   const hcRaw = side === 'none' ? '0' : $('#sHc').value.trim();
@@ -1646,7 +1676,7 @@ async function submitSingle(){
   let npbDate = null;
   if (date && home && away){
     try {
-      const games = (await getDay(date, comp)).games || [];
+      const games = (byComp && byComp[comp]) || (await getDay(date, comp)).games || [];
       const g = games.find(g => (teamEq(g.homeTeam, home) && teamEq(g.awayTeam, away)) || (teamEq(g.homeTeam, away) && teamEq(g.awayTeam, home)));
       if (g){
         npbDate = date;
@@ -1664,7 +1694,7 @@ async function submitSingle(){
     upsertMatch(data);
     if (date){ state.showAll = false; state.weekStart = startOfWeek(parseYmd(date)); }
     hideModal('addModal');
-    ['sHome','sAway','sHc','sMemo','sName'].forEach(id => $('#'+id).value = ''); sNameDirty = false; $('#sGames').innerHTML = '';
+    ['sHome','sAway','sHc','sMemo','sName'].forEach(id => $('#'+id).value = ''); sNameDirty = false; sPickComp = null; $('#sGames').innerHTML = '';
     selectMatch(data.id);
     toast(npbDate ? '登録しました(日程と連携済み・結果取得が使えます)' : '登録しました', 'ok');
   } catch(err){ handleDbError(err, '登録に失敗'); }
