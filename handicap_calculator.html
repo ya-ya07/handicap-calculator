@@ -738,12 +738,19 @@ function hcLadder(m){
       const g = segs[segs.length-1];
       if (g && g.tag === tag) g.hi = k; else segs.push({ lo:k, hi:k, tag, t:o.t });
     });
+    const T = side === 'fav' ? (m.npb_team_fav || '出し側') : (m.npb_team_dog || '受け側');
     return segs.map(g => {
+      // 賭けたチームから見た点差 x (勝ち=プラス / 負け=マイナス) に直して表記する
+      const lowOpen = g.lo === -1, upOpen = g.hi === last;
+      let xlo, xhi;       // null = 上限/下限なし
+      if (side === 'fav'){ xlo = lowOpen ? null : g.lo; xhi = upOpen ? null : g.hi; }
+      else { xlo = upOpen ? null : -g.hi; xhi = lowOpen ? null : -g.lo; }
+      const one = x => x > 0 ? `${T}が${x}点差で勝ち` : (x === 0 ? '同点' : `${T}が${-x}点差で負け`);
       let lbl;
-      if (g.lo === -1) lbl = g.hi === -1 ? '負け越し' : (g.hi === 0 ? '同点か負け越し' : `${g.hi}点差以下(負け越し含む)`);
-      else if (g.hi === last && g.lo !== g.hi) lbl = `${g.lo}点差以上`;
-      else if (g.hi === last) lbl = `${g.lo}点差以上`;
-      else lbl = g.lo === g.hi ? (g.lo === 0 ? '同点' : `${g.lo}点差`) : `${g.lo}〜${g.hi}点差`;
+      if (xlo === null && xhi === null) lbl = '全て';
+      else if (xlo !== null && xhi === null) lbl = xlo > 0 ? `${T}が${xlo}点差以上で勝ち` : (xlo === 0 ? `${T}が同点か勝ち` : `${T}の勝ち、または${-xlo}点差以内の負け`);
+      else if (xlo === null) lbl = xhi < 0 ? `${T}が${-xhi}点差以上で負け` : (xhi === 0 ? `${T}が同点か負け` : `${T}の負け、または${xhi}点差以内の勝ち`);
+      else lbl = xlo === xhi ? one(xlo) : `${one(xlo)}〜${one(xhi)}`;
       return { lbl, tag:g.tag, t:g.t };
     });
   };
@@ -1033,7 +1040,7 @@ function hcBadge(m){
   if (!hasHc(m)) return '<span class="hcb warn">⚠ ハンデ未登録</span>';
   if (isZeroHc(m)) return '<span class="hcb none">ハンデなし</span>';
   const rr = hcRule(parseHC(m.hc, matchComp(m)));
-  return `<span class="hcb">${m.npb_team_fav ? esc(m.npb_team_fav) + ' ' : 'HC '}${esc(hcText(m))}</span>${rr ? `<span class="hcline">${favLine(rr)}</span>` : ''}`;
+  return `<span class="hcb">${m.npb_team_fav ? '出し ' + esc(m.npb_team_fav) + ' ' : 'HC '}${esc(hcText(m))}</span>${rr ? `<span class="hcline">${favLine(rr)}</span>` : ''}`;
 }
 function renderWeekHead(){
   const s = state.weekStart, e = addDays(s, 6);
